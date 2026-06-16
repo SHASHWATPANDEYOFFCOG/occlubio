@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>occlubio — Face Recognition Platform</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; color: #1b1b1b; }
+  h1 { margin-bottom: 4px; } .sub { color: #666; margin-top: 0; }
+  section { border: 1px solid #ddd; border-radius: 10px; padding: 16px 18px; margin: 16px 0; }
+  h2 { margin-top: 0; font-size: 1.1rem; }
+  input, button, select { font-size: 0.95rem; padding: 7px 9px; margin: 4px 0; border-radius: 6px; border: 1px solid #ccc; }
+  button { background: #1769ff; color: #fff; border: none; cursor: pointer; }
+  button.secondary { background: #444; } button:hover { opacity: 0.92; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  pre { background: #f6f8fa; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; }
+  video, canvas { border: 1px solid #ccc; border-radius: 6px; max-width: 320px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; } td, th { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+  .ok { color: #137333; } .err { color: #c5221f; } .muted { color: #777; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+  <h1>occlubio</h1>
+  <p class="sub">Lightweight face recognition platform — self-registration &amp; video identification.</p>
+
+  <section>
+    <h2>1. Create account</h2>
+    <div class="row">
+      <input id="r_user" placeholder="username" />
+      <input id="r_email" placeholder="email" />
+      <input id="r_pass" type="password" placeholder="password" />
+      <button onclick="register()">Register</button>
+    </div>
+    <pre id="r_out" class="muted">No account yet.</pre>
+  </section>
+
+  <section>
+    <h2>2. Enroll your face</h2>
+    <p class="muted">User ID <input id="e_uid" style="width:70px" placeholder="id" /> — upload photos and/or capture from webcam, then enroll.</p>
+    <div class="row">
+      <input type="file" id="e_files" accept="image/*" multiple />
+    </div>
+    <div class="row">
+      <button class="secondary" onclick="startCam()">Start webcam</button>
+      <button class="secondary" onclick="snap()">Capture frame</button>
+      <span id="cam_count" class="muted">0 captured</span>
+    </div>
+    <div class="row">
+      <video id="cam" autoplay playsinline width="320" height="240" style="display:none"></video>
+      <canvas id="canvas" width="320" height="240" style="display:none"></canvas>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="e_force" /> force (ignore duplicate)</label>
+      <button onclick="enroll()">Enroll</button>
+    </div>
+    <pre id="e_out" class="muted">Not enrolled.</pre>
+  </section>
+
+  <section>
+    <h2>3. Identify people in a video</h2>
+    <div class="row">
+      <input type="file" id="v_file" accept="video/*" />
+      <label>stride <input id="v_stride" type="number" value="2" min="1" style="width:60px" /></label>
+      <button onclick="identify()">Upload &amp; Identify</button>
+    </div>
+    <pre id="v_out" class="muted">No job.</pre>
+    <div id="v_result"></div>
+  </section>
+
+<script>
+const captured = [];   // webcam snapshots as Blobs
+
+function toast(msg, kind) {
+  const bg = kind === 'err' ? '#c5221f' : kind === 'ok' ? '#137333' : '#1769ff';
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;top:16px;right:16px;z-index:9999;padding:12px 16px;border-radius:8px;color:#fff;font-size:0.95rem;box-shadow:0 2px 10px rgba(0,0,0,.25);background:${bg};max-width:340px;`;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.transition = 'opacity .4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 4000);
+}
+
+async function register() {
+  const body = { username: r_user.value, email: r_email.value, password: r_pass.value };
+  const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const j = await res.json();
+  if (res.ok) { r_out.innerHTML = `<span class="ok">Registered: ${j.username} (id=${j.id})</span>`; e_uid.value = j.id; }
+  else { r_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`; }
+}
+
+let stream;
+async function startCam() {
+  stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  cam.style.display = 'inline-block'; cam.srcObject = stream;
+}
+function snap() {
+  if (!stream) { alert('Start webcam first'); return; }
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(cam, 0, 0, canvas.width, canvas.height);
+  canvas.toBlob(b => { captured.push(b); cam_count.textContent = captured.length + ' captured'; }, 'image/jpeg', 0.95);
+}
+
+async function enroll() {
+  const uid = e_uid.value; if (!uid) { alert('Enter your user id (register first)'); return; }
+  const fd = new FormData();
+  for (const f of e_files.files) fd.append('files', f);
+  captured.forEach((b, i) => fd.append('files', b, `cam_${i}.jpg`));
+  const url = `/api/users/${uid}/enroll?force=${e_force.checked}`;
+  const res = await fetch(url, { method:'POST', body: fd });
+  const j = await res.json();
+  if (res.ok) e_out.innerHTML = `<span class="ok">Enrolled ${j.username}: accepted ${j.n_accepted}/${j.n_total}, quality ${j.quality}</span>`;
+  else e_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`;
+}
+
+async function identify() {
+  if (!v_file.files[0]) { alert('Choose a video'); return; }
+  toast('⬆ Upload started — processing on the server…');
+  window._t0 = performance.now();
+  const fd = new FormData();
+  fd.append('file', v_file.files[0]);
+  fd.append('stride', v_stride.value);
+  const res = await fetch('/api/identify', { method:'POST', body: fd });
+  const j = await res.json();
+  if (!res.ok) { v_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`; toast('Upload failed', 'err'); return; }
+  v_out.textContent = `Job ${j.job_id} submitted… processing (this can be slow on CPU).`;
+  poll(j.job_id);
+}
+
+async function poll(id) {
+  const res = await fetch(`/api/jobs/${id}`);
+  const j = await res.json();
+  v_out.textContent = `Job ${id}: ${j.status}`;
+  if (j.status === 'done') return renderReport(j);
+  if (j.status === 'error') { v_out.innerHTML = `<span class="err">error: ${j.message}</span>`; toast('Processing failed: ' + j.message, 'err'); return; }
+  setTimeout(() => poll(id), 2000);
+}
+
+function renderReport(j) {
+  const r = j.report || {};
+  const p = r.processing || {};
+  const total = window._t0 ? ((performance.now() - window._t0) / 1000).toFixed(1) : null;
+  toast(`✅ Done — processed in ${p.processing_seconds ?? '?'}s`, 'ok');
+  let html = `<h3>Result</h3>`;
+  if (p.processing_seconds !== undefined)
+    html += `<p><b>⏱ Processing time: ${p.processing_seconds}s</b> for a ${p.video_seconds}s video — ${p.frames_processed} frames at ${p.processing_fps} FPS (stride ${p.stride})${total ? `; total incl. upload/queue: ${total}s` : ''}</p>`;
+  html += `<p>Known people: ${r.summary?.known_people ?? 0}, unknown alerts: ${r.summary?.unknown_alerts ?? 0}</p>`;
+  html += `<table><tr><th>User</th><th>ID</th><th>Appearances</th><th>First</th><th>Last</th><th>Visible(s)</th><th>Conf</th></tr>`;
+  for (const p of (r.people||[])) html += `<tr><td>${p.username}</td><td>${p.user_id??''}</td><td>${p.appearances}</td><td>${p.first_seen}</td><td>${p.last_seen}</td><td>${p.total_visible_s}</td><td>${p.max_confidence}</td></tr>`;
+  for (const a of (r.unknown_alerts||[])) html += `<tr><td colspan="2" class="err">${a.alert}</td><td>${a.appearances}</td><td>${a.first_seen}</td><td>${a.last_seen}</td><td>${a.visible_s}</td><td>—</td></tr>`;
+  html += `</table>`;
+  if (j.output_video) html += `<p><a href="${j.output_video}" download>⬇ Download annotated video (.mp4)</a> — open it in a media player such as <b>VLC</b> (browsers can't preview the mp4v codec).</p>`;
+  v_result.innerHTML = html;
+}
+</script>
+</body>
+</html>

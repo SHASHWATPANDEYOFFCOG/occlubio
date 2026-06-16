@@ -1,0 +1,58 @@
+# DeepStream app config — multi-camera face pipeline skeleton.
+# Template: fill <...>. Run:  deepstream-app -c deepstream_app_config.txt
+# See ./README.md for the full bring-up.
+
+[application]
+enable-perf-measurement=1
+perf-measurement-interval-sec=5
+
+# ---- one [source*] block per camera (batch-size below must match the count) ----
+[source0]
+enable=1
+type=4                              # 4 = RTSP
+uri=<rtsp://user:pass@camera-1/stream>
+num-sources=1
+gpu-id=0
+cudadec-memtype=0
+
+# [source1] ... add more cameras here
+
+[streammux]
+gpu-id=0
+batch-size=4                        # = number of enabled sources
+batched-push-timeout=40000
+width=1920
+height=1080
+live-source=1
+nvbuf-memory-type=0
+
+[primary-gie]
+enable=1
+gpu-id=0
+gie-unique-id=1
+config-file=config_infer_primary_scrfd.txt
+
+# ---- tracker: assigns stable ids so recognition runs once per track ----
+[tracker]
+enable=1
+tracker-width=640
+tracker-height=384
+gpu-id=0
+ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so
+ll-config-file=<config_tracker_NvDCF_perf.yml>   # or a ByteTrack-style config
+
+# ---- secondary GIE: face recognizer (embedding) operating on detector boxes ----
+[secondary-gie0]
+enable=1
+gpu-id=0
+gie-unique-id=2
+operate-on-gie-id=1
+config-file=config_infer_secondary_recognizer.txt   # FP16 engine; emits embedding tensor
+
+[sink0]
+enable=1
+type=2                              # 2 = EglSink (display). Use type=6 for message broker.
+sync=0
+
+[osd]
+enable=1

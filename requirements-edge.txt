@@ -1,0 +1,20 @@
+# Jetson Orin NX / AGX Orin edge deployment — NOT plain pip wheels.
+#
+# On Jetson you do NOT `pip install onnxruntime`/`faiss-cpu` for the hot path.
+# You deploy through JetPack's stack:
+#
+#   JetPack 6.x        -> CUDA, cuDNN, TensorRT
+#   DeepStream SDK 7.x -> video ingest + nvinfer (TensorRT engines)
+#   Triton (optional)  -> model versioning / heavy second-opinion models
+#
+# Steps:
+#   1. Flash JetPack 6.x (includes TensorRT + DeepStream prerequisites).
+#   2. sudo apt-get install deepstream-7.0
+#   3. Convert models:  ONNX  ->  TensorRT engine  (trtexec --fp16 / --int8)
+#   4. Wire engines into the DeepStream config in ../deepstream/
+#
+# Python on Jetson (for glue/eval, not the hot path):
+#   onnxruntime-gpu (jetson build), faiss-gpu (build from source or use cuVS),
+#   numpy, opencv (the JetPack-provided CUDA OpenCV).
+#
+# See ../deepstream/README.md for the full edge bring-up.

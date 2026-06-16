@@ -1,0 +1,57 @@
+# Single source of truth for all pipeline knobs.
+# Override per-run with: load_config("my_config.yaml")
+
+device:
+  ctx_id: 0                       # GPU id; set -1 to force CPU
+  providers:                      # onnxruntime providers (order = priority)
+    - CUDAExecutionProvider
+    - CPUExecutionProvider
+
+detection:
+  model_name: buffalo_l           # buffalo_l (accurate) | buffalo_sc (light, edge) | buffalo_s
+  det_size: [640, 640]            # detector input; smaller = faster, misses small faces
+  score_thresh: 0.5
+  min_face: 24                    # ignore faces smaller than this (px, longer side)
+
+recognition:
+  embedding_dim: 512
+  custom_onnx: null               # path to YOUR trained occlusion-aware model (see training/)
+                                  # when set, detection runs detection-only and this model embeds.
+
+quality:                          # FIQA gate (proxy for CR-FIQA; see quality.py HOOK)
+  enabled: true
+  min_score: 0.35                 # [0,1]; frames below this are not recognized
+  blur_min: 40.0                  # variance-of-Laplacian floor (sharpness)
+  brightness_min: 30
+  brightness_max: 225
+
+occlusion:                        # occlusion-type estimate (heuristic; HOOK for trained head)
+  enabled: true
+
+antispoof:                        # passive RGB PAD (disabled until you supply a model)
+  enabled: false
+  onnx_path: null                 # e.g. MiniFASNet ONNX (Silent-Face-Anti-Spoofing)
+  input_size: [80, 80]
+  min_score: 0.5
+
+tracking:
+  enabled: true
+  iou_thresh: 0.25                # lower = holds IDs better on moving faces / strided frames
+  max_age: 30                     # frames a track survives without a detection
+  min_hits: 2                     # detections before a track is "confirmed"
+
+analytics:                        # video report consolidation (reduces fragmented "unknown" noise)
+  min_track_frames: 3             # drop tracks seen fewer than this many processed frames
+  merge_gap_s: 1.5                # merge a person's appearances separated by less than this gap
+  unknown_min_seconds: 0.6        # ignore unknown blips shorter than this
+  unknown_merge_sim: 0.45         # cosine sim to merge unknown tracks into ONE unknown person
+
+gallery:
+  path: gallery_store
+  metric: cosine
+  match_threshold: 0.45           # cosine-sim threshold to call a track "known" (0.45 = fewer false matches)
+  top_k: 5
+  per_track_buffer: 8             # set-based recognition: avg embeddings over N best frames
+
+engine:
+  draw: true                      # draw overlays in video mode

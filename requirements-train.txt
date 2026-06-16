@@ -1,0 +1,6 @@
+# Training-only deps (Phase 3). Prefer:  pip install -e ".[train]"
+# Install a CUDA-matched torch from https://pytorch.org for your DGX Spark / GPU.
+torch>=2.1
+torchvision>=0.16
+timm>=0.9
+scikit-learn>=1.2

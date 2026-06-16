@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "occlubio"
+version = "0.1.0"
+description = "Occlusion-robust multimodal biometric face recognition pipeline"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.23",
+    "opencv-python>=4.7",
+    "pyyaml>=6.0",
+    "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+# Inference path (pretrained baseline). Use onnxruntime-gpu / faiss-gpu on CUDA machines.
+infer = [
+    "insightface>=0.7.3",
+    "onnxruntime>=1.16",
+    "faiss-cpu>=1.7.4",
+]
+# Training path (Phase 3). Heavy; only needed to train your own model.
+train = [
+    "torch>=2.1",
+    "torchvision>=0.16",
+    "timm>=0.9",
+    "scikit-learn>=1.2",
+]
+# Platform layer (end-user web app): account registration + video-upload identification.
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.9",
+    "sqlalchemy>=2.0",
+]
+# Report generation (REPORT.md -> REPORT.pdf), pure-Python, no system binaries.
+report = [
+    "markdown>=3.5",
+    "xhtml2pdf>=0.2.16",
+]
+dev = ["pytest>=7", "httpx>=0.27"]
+
+[tool.setuptools.packages.find]
+include = ["occlubio*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Model weights / data / outputs (do not commit biometric data!)
+*.onnx
+*.engine
+*.trt
+*.pth
+*.pt
+gallery_store/
+runs/
+data/
+out*.jpg
+out*.mp4
+
+# insightface model cache
+~/.insightface/
+.insightface/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.db

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>occlubio — Sign in</title>
+<style>
+  :root{ --bg:#0b1020; --panel:#121a30; --panel2:#0e1528; --line:#243154;
+    --txt:#e8edf7; --muted:#93a0bd; --brand:#3b82f6; --brand2:#2563eb; --ok:#22c55e; --err:#ef4444; }
+  *{box-sizing:border-box}
+  body{ margin:0; min-height:100vh; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--txt);
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #1b2750 0%, transparent 60%),
+      radial-gradient(1000px 500px at 110% 110%, #16204a 0%, transparent 55%), var(--bg);
+    display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card{ width:100%; max-width:440px; background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line); border-radius:16px; padding:30px 28px; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+  .brand{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+  .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#7c3aed);
+    display:grid;place-items:center;font-weight:800;font-size:20px;color:#fff}
+  h1{font-size:1.45rem; margin:0}
+  .sub{color:var(--muted); margin:4px 0 22px; font-size:.9rem}
+  .tabs{display:flex; gap:6px; background:#0c1426; padding:5px; border-radius:10px; margin-bottom:18px}
+  .tab{flex:1; text-align:center; padding:9px; border-radius:7px; cursor:pointer; color:var(--muted); font-weight:600; font-size:.9rem}
+  .tab.active{background:var(--brand); color:#fff}
+  label{display:block; font-size:.8rem; color:var(--muted); margin:12px 0 5px}
+  input,select{width:100%; padding:11px 12px; border-radius:9px; border:1px solid var(--line);
+    background:#0c1426; color:var(--txt); font-size:.95rem}
+  input:focus,select:focus{outline:none; border-color:var(--brand)}
+  .roles{display:flex; gap:8px}
+  .role{flex:1; border:1px solid var(--line); border-radius:9px; padding:11px; text-align:center; cursor:pointer; font-size:.85rem; font-weight:600; color:var(--muted)}
+  .role.active{border-color:var(--brand); background:rgba(59,130,246,.12); color:var(--txt)}
+  .role small{display:block; font-weight:400; font-size:.72rem; margin-top:2px}
+  button{width:100%; margin-top:20px; padding:12px; border:none; border-radius:9px; cursor:pointer;
+    background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#fff; font-weight:700; font-size:.95rem}
+  button:hover{opacity:.93}
+  .msg{margin-top:14px; font-size:.85rem; min-height:18px}
+  .ok{color:var(--ok)} .err{color:var(--err)}
+  .foot{margin-top:18px; text-align:center; color:var(--muted); font-size:.75rem}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="logo">o</div>
+      <div><h1>occlubio</h1><div class="sub" style="margin:0">Occlusion-robust face recognition</div></div>
+    </div>
+    <p class="sub">Sign in to the surveillance &amp; identification console.</p>
+
+    <div class="tabs">
+      <div class="tab active" id="tab_login" onclick="switchTab('login')">Sign in</div>
+      <div class="tab" id="tab_reg" onclick="switchTab('reg')">Create account</div>
+    </div>
+
+    <!-- LOGIN -->
+    <form id="form_login" onsubmit="doLogin(event)">
+      <label>Username</label>
+      <input id="l_user" autocomplete="username" placeholder="username" required />
+      <label>Password</label>
+      <input id="l_pass" type="password" autocomplete="current-password" placeholder="••••••••" required />
+      <button type="submit">Sign in</button>
+      <div class="msg" id="l_msg"></div>
+    </form>
+
+    <!-- REGISTER -->
+    <form id="form_reg" class="hidden" onsubmit="doRegister(event)">
+      <label>Account type</label>
+      <div class="roles">
+        <div class="role active" id="role_user" onclick="pickRole('user')">
+          User<small>enroll your own face</small></div>
+        <div class="role" id="role_auth" onclick="pickRole('authority')">
+          Authority<small>operate surveillance</small></div>
+      </div>
+      <label>Username</label>
+      <input id="r_user" placeholder="username" required />
+      <label>Email</label>
+      <input id="r_email" type="email" placeholder="you@example.com" required />
+      <label>Password</label>
+      <input id="r_pass" type="password" placeholder="choose a password" required />
+      <div id="auth_code_wrap" class="hidden">
+        <label>Authority access code</label>
+        <input id="r_code" placeholder="operator access code" />
+      </div>
+      <button type="submit">Create account</button>
+      <div class="msg" id="r_msg"></div>
+    </form>
+
+    <div class="foot">Biometric system — authorized use only.</div>
+  </div>
+
+<script>
+if (localStorage.getItem('occlubio_session')) location.replace('/');
+
+let regRole = 'user';
+function pickRole(r){
+  regRole = r;
+  role_user.classList.toggle('active', r === 'user');
+  role_auth.classList.toggle('active', r === 'authority');
+  auth_code_wrap.classList.toggle('hidden', r !== 'authority');
+}
+function switchTab(which){
+  const login = which === 'login';
+  tab_login.classList.toggle('active', login);
+  tab_reg.classList.toggle('active', !login);
+  form_login.classList.toggle('hidden', !login);
+  form_reg.classList.toggle('hidden', login);
+}
+function save(j){
+  localStorage.setItem('occlubio_session', JSON.stringify({
+    token:j.token, user_id:j.user_id, username:j.username, role:j.role, enrolled:j.enrolled
+  }));
+}
+
+async function doLogin(e){
+  e.preventDefault();
+  l_msg.textContent = 'Signing in…'; l_msg.className = 'msg';
+  const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username:l_user.value, password:l_pass.value }) });
+  const j = await res.json();
+  if(res.ok){ save(j); l_msg.innerHTML = '<span class="ok">Welcome back — redirecting…</span>'; location.replace('/'); }
+  else l_msg.innerHTML = `<span class="err">${j.detail || 'Invalid credentials'}</span>`;
+}
+
+async function doRegister(e){
+  e.preventDefault();
+  r_msg.textContent = 'Creating account…'; r_msg.className = 'msg';
+  const body = { username:r_user.value, email:r_email.value, password:r_pass.value, role:regRole };
+  if(regRole === 'authority') body.authority_code = r_code.value;
+  const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body) });
+  const j = await res.json();
+  if(res.ok){ save(j); r_msg.innerHTML = '<span class="ok">Account created — redirecting…</span>'; location.replace('/'); }
+  else r_msg.innerHTML = `<span class="err">${j.detail || JSON.stringify(j)}</span>`;
+}
+</script>
+</body>
+</html>

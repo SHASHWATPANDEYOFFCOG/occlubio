@@ -30,3 +30,4 @@ out*.mp4
 .DS_Store
 Thumbs.db
 *.db
+*.log

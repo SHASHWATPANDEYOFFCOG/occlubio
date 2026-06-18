@@ -12,6 +12,7 @@ The FAISS gallery is labelled by *username* so annotated videos show names direc
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import threading
@@ -43,7 +44,7 @@ def verify_password(password: str, stored: str) -> bool:
     try:
         salt_hex, dk_hex = stored.split(":")
         dk = hashlib.pbkdf2_hmac("sha256", password.encode(), bytes.fromhex(salt_hex), 200_000)
-        return hashlib.compare_digest(dk.hex(), dk_hex)
+        return hmac.compare_digest(dk.hex(), dk_hex)
     except Exception:  # noqa: BLE001
         return False
 

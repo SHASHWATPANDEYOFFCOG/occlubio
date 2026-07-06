@@ -1,14 +1,3 @@
-"""Video-based identification (inference) phase — the production deliverable.
-
-Input:  a video file (one or many people).
-Output: an annotated MP4 (boxes + names + confidence + track IDs) AND a JSON report with,
-per person: id, match confidence, first/last-seen timestamp, number of appearances; plus
-unknown-person alerts.
-
-Usage:
-  python scripts/identify_video.py --source data/my_video.mp4 \
-      --gallery gallery_store --out data/my_output.mp4 --report data/my_report.json --stride 2
-"""
 from __future__ import annotations
 
 import argparse
@@ -72,7 +61,7 @@ def main():
         frame_no += 1
         if frame_no % max(1, args.stride) != 0:
             continue
-        t = frame_no / fps  # appearance timestamp (seconds)
+        t = frame_no / fps
         results = engine.process_frame(frame)
         logbook.update(t, results)
         processed += 1
@@ -95,7 +84,6 @@ def main():
     report_path = args.report or "identification_report.json"
     report = logbook.save(report_path)
 
-    # ---- pretty console summary (what you show your professor) ----
     elapsed = time.time() - t0
     log.info("processed %d frames in %.1fs (%.2f FPS)", processed, elapsed, processed / max(elapsed, 1e-6))
     log.info("=" * 64)

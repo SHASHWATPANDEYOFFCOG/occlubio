@@ -1,4 +1,3 @@
-"""Shared helpers: logging, numpy ops, visualization."""
 from __future__ import annotations
 
 import logging
@@ -35,11 +34,9 @@ def l2_normalize(x: np.ndarray, axis: int = -1, eps: float = 1e-10) -> np.ndarra
 
 
 def variance_of_laplacian(gray: np.ndarray) -> float:
-    """Sharpness proxy: higher = sharper. Low values indicate motion/defocus blur."""
     return float(cv2.Laplacian(gray, cv2.CV_64F).var())
 
 
-# ---- visualization ---------------------------------------------------------
 
 _COLOR_KNOWN = (60, 200, 60)
 _COLOR_UNKNOWN = (60, 160, 230)
@@ -47,7 +44,6 @@ _COLOR_SPOOF = (40, 40, 230)
 
 
 def draw_results(img: np.ndarray, results: Iterable, draw_kps: bool = False) -> np.ndarray:
-    """Draw bbox + label for each FaceResult on a copy of img (BGR)."""
     out = img.copy()
     for f in results:
         x1, y1, x2, y2 = [int(v) for v in f.bbox]

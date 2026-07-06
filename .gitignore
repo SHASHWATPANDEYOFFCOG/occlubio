@@ -7,6 +7,7 @@ build/
 dist/
 .venv/
 venv/
+.pytest_cache/
 
 # Model weights / data / outputs (do not commit biometric data!)
 *.onnx
@@ -24,9 +25,13 @@ out*.mp4
 ~/.insightface/
 .insightface/
 
-# IDE / OS
+# generated reports
+*.pdf
+
+# IDE / OS / tooling
 .vscode/
 .idea/
+.qodo/
 .DS_Store
 Thumbs.db
 *.db

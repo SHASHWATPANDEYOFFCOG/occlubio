@@ -1,12 +1,3 @@
-"""Face image quality gate.
-
-This is a *proxy* FIQA combining detector confidence, sharpness (variance of Laplacian),
-and exposure. It is intentionally dependency-light so the baseline runs anywhere.
-
-HOOK: for SOTA, replace `score()` with CR-FIQA (CVPR'23, fdbtrs/CR-FIQA) or CLIB-FIQA
-(CVPR'24). Both return a learned usability scalar; keep the same [0,1] contract so the
-rest of the pipeline is unchanged.
-"""
 from __future__ import annotations
 
 import cv2
@@ -25,7 +16,6 @@ class FaceQualityGate:
         self.bright_max = float(q.brightness_max)
 
     def score(self, aligned_crop: np.ndarray, det_score: float) -> float:
-        """Return a usability score in [0,1] for an aligned face crop."""
         gray = cv2.cvtColor(aligned_crop, cv2.COLOR_BGR2GRAY)
 
         sharp = variance_of_laplacian(gray)
@@ -35,7 +25,6 @@ class FaceQualityGate:
         if self.bright_min <= brightness <= self.bright_max:
             bright_score = 1.0
         else:
-            # linear falloff outside the comfortable exposure band
             dist = min(abs(brightness - self.bright_min), abs(brightness - self.bright_max))
             bright_score = float(np.clip(1.0 - dist / 60.0, 0.0, 1.0))
 

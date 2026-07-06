@@ -1,11 +1,3 @@
-"""RecognitionEngine — orchestrates the full per-frame flow.
-
-   detect -> track -> (per face) align -> quality gate -> occlusion -> anti-spoof
-          -> embed -> per-track embedding fusion -> 1:N gallery identify
-
-Design principle (architecture §1): heavy recognition runs once per *track* on the best,
-quality-gated, live frame; embeddings are averaged over a track for set-based robustness.
-"""
 from __future__ import annotations
 
 from collections import defaultdict, deque
@@ -61,7 +53,6 @@ class RecognitionEngine:
         self.match_threshold = float(cfg.gallery.match_threshold)
         self._buffers = defaultdict(lambda: deque(maxlen=int(cfg.gallery.per_track_buffer)))
 
-    # ----------------------------------------------------------------------
     def _embed(self, img: np.ndarray, face: FaceResult, aligned: np.ndarray) -> np.ndarray:
         if self.recognizer is not None:
             return self.recognizer.embed(aligned)
@@ -89,17 +80,16 @@ class RecognitionEngine:
             f.live, f.spoof_score = spoof["live"], spoof["score"]
 
             if not (passed and f.live):
-                continue  # leave as "unknown"; not worth a gallery query
+                continue
 
             emb = self._embed(img, f, aligned)
             if f.track_id is not None:
                 emb = self._fuse_track(f.track_id, emb)
-            f.embedding = emb  # expose the fused/representative embedding for analytics clustering
+            f.embedding = emb
             f.identity, f.score = self.gallery.identify(emb, self.match_threshold)
 
         return faces
 
-    # convenience for single-image use (no tracking/fusion)
     def recognize_image(self, img: np.ndarray) -> List[FaceResult]:
         saved = self.tracker
         self.tracker = None
@@ -109,6 +99,5 @@ class RecognitionEngine:
             self.tracker = saved
 
     def embed_face(self, img: np.ndarray, face: FaceResult) -> np.ndarray:
-        """Public helper used by enrollment."""
         aligned = norm_crop(img, face.kps)
         return self._embed(img, face, aligned)

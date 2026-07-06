@@ -1,9 +1,3 @@
-"""Render REPORT.md to REPORT.pdf (pure-Python: markdown + xhtml2pdf, no system binaries).
-
-    pip install -e ".[report]"
-    python scripts/build_report.py            # REPORT.md -> REPORT.pdf
-    python scripts/build_report.py IN.md OUT.pdf
-"""
 from __future__ import annotations
 
 import sys

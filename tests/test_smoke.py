@@ -1,8 +1,3 @@
-"""Smoke tests — no network, no model downloads. Run: pytest -q
-
-Covers the pure-python/core paths: config, alignment, occlusion augmentation, tracker, and
-(if installed) the FAISS gallery and AdaFace head.
-"""
 import numpy as np
 import pytest
 
@@ -23,7 +18,7 @@ def test_config_loads_with_expected_keys():
 
 def test_aligner_outputs_112():
     img = np.random.randint(0, 255, (480, 640, 3), np.uint8)
-    kps = ARCFACE_DST + np.array([200, 150], np.float32)  # shift template into the image
+    kps = ARCFACE_DST + np.array([200, 150], np.float32)
     crop = norm_crop(img, kps)
     assert crop.shape == (112, 112, 3)
 
@@ -43,12 +38,12 @@ def test_tracker_assigns_stable_ids():
                           kps=np.zeros((5, 2), np.float32), det_score=0.9)
 
     f1 = tracker.update([det(10, 10, 50, 50)])[0]
-    f2 = tracker.update([det(12, 11, 52, 51)])[0]   # same face, moved slightly
+    f2 = tracker.update([det(12, 11, 52, 51)])[0]
     assert f1.track_id == f2.track_id
 
 
 def test_faiss_gallery_roundtrip(tmp_path):
-    faiss = pytest.importorskip("faiss")  # noqa: F841
+    faiss = pytest.importorskip("faiss")
     from occlubio.gallery import FaissGallery
 
     g = FaissGallery(dim=8)

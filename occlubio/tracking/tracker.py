@@ -1,12 +1,3 @@
-"""Lightweight IoU/greedy tracker (SORT-lite, no Kalman, no extra deps).
-
-Enough to assign stable track ids so recognition runs once per track and embeddings are
-fused across a track's lifetime (set-based recognition — key for occlusion robustness).
-
-HOOK: for crowded/occluded scenes swap in ByteTrack (FoundationVision/ByteTrack) or
-BoT-SORT with ReID; on Jetson use DeepStream `nvtracker` (NvDCF). Keep `update()`'s contract:
-take detections, return them with `track_id` set.
-"""
 from __future__ import annotations
 
 from typing import List
@@ -44,13 +35,11 @@ class IoUTracker:
         self._next_id = 0
 
     def update(self, detections: List) -> List:
-        """Assign track_id to each FaceResult (greedy IoU matching). Mutates and returns it."""
         for t in self.tracks:
             t.time_since_update += 1
             t.age += 1
 
         unmatched = list(range(len(detections)))
-        # greedy match: highest IoU first
         pairs = []
         for di, det in enumerate(detections):
             for ti, trk in enumerate(self.tracks):
@@ -79,6 +68,5 @@ class IoUTracker:
             detections[di].track_id = trk.id
             self.tracks.append(trk)
 
-        # cull dead tracks
         self.tracks = [t for t in self.tracks if t.time_since_update <= self.max_age]
         return detections

@@ -1,7 +1,3 @@
-"""Tiny YAML config loader -> attribute-accessible namespace.
-
-Zero extra deps beyond PyYAML. Access nested keys with dots: ``cfg.gallery.top_k``.
-"""
 from __future__ import annotations
 
 import types
@@ -30,7 +26,6 @@ def _to_dict(obj: Any) -> Any:
 
 
 def load_config(path: Optional[str | Path] = None) -> types.SimpleNamespace:
-    """Load a config file (defaults to configs/default.yaml)."""
     path = Path(path) if path else DEFAULT_CONFIG_PATH
     if not path.exists():
         raise FileNotFoundError(f"config not found: {path}")

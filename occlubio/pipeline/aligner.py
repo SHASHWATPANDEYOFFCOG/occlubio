@@ -1,15 +1,8 @@
-"""5-point similarity-transform alignment to the canonical ArcFace template.
-
-Alignment is the single highest-leverage step for occluded FR — keep this routine
-*identical* between training and inference, or accuracy silently collapses.
-"""
 from __future__ import annotations
 
 import cv2
 import numpy as np
 
-# Canonical 5-point destination template for a 112x112 aligned face
-# (left eye, right eye, nose, left mouth corner, right mouth corner).
 ARCFACE_DST = np.array(
     [
         [38.2946, 51.6963],
@@ -23,11 +16,6 @@ ARCFACE_DST = np.array(
 
 
 def _umeyama(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
-    """Least-squares similarity transform (rotation+uniform scale+translation).
-
-    This is the Umeyama (1991) solution used by skimage.SimilarityTransform / InsightFace.
-    Returns a 3x3 homogeneous matrix. No RANSAC, no OpenCV version dependence.
-    """
     src = np.asarray(src, dtype=np.float64)
     dst = np.asarray(dst, dtype=np.float64)
     num, dim = src.shape
@@ -64,7 +52,6 @@ def _umeyama(src: np.ndarray, dst: np.ndarray) -> np.ndarray:
 
 
 def estimate_norm(kps: np.ndarray, image_size: int = 112) -> np.ndarray:
-    """Estimate the 2x3 affine matrix mapping the 5 landmarks to the template."""
     assert kps.shape == (5, 2), f"expected 5x2 landmarks, got {kps.shape}"
     dst = ARCFACE_DST.copy()
     if image_size != 112:
@@ -74,6 +61,5 @@ def estimate_norm(kps: np.ndarray, image_size: int = 112) -> np.ndarray:
 
 
 def norm_crop(img: np.ndarray, kps: np.ndarray, image_size: int = 112) -> np.ndarray:
-    """Return an aligned BGR crop of `image_size` x `image_size`."""
     M = estimate_norm(kps, image_size)
     return cv2.warpAffine(img, M, (image_size, image_size), borderValue=0.0)

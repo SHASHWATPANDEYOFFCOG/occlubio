@@ -5,63 +5,203 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>occlubio — Console</title>
 <style>
-  :root{ --bg:#0b1020; --panel:#121a30; --panel2:#0e1528; --line:#243154;
-    --txt:#e8edf7; --muted:#93a0bd; --brand:#3b82f6; --brand2:#2563eb; --ok:#22c55e; --err:#ef4444; --warn:#f59e0b; }
-  *{box-sizing:border-box}
-  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--txt); background:var(--bg)}
-  a{color:var(--brand)}
-  .layout{display:grid; grid-template-columns:248px 1fr; min-height:100vh}
-  .side{background:linear-gradient(180deg,#0e1528,#0b1020); border-right:1px solid var(--line); padding:20px 16px; display:flex; flex-direction:column}
-  .brand{display:flex; align-items:center; gap:10px; margin-bottom:20px}
-  .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--brand),#7c3aed);display:grid;place-items:center;font-weight:800;color:#fff}
-  .brand b{font-size:1.1rem}
-  .rolechip{font-size:.72rem; font-weight:700; padding:4px 10px; border-radius:999px; margin-bottom:18px; display:inline-block; width:fit-content}
-  .rolechip.authority{background:rgba(124,58,237,.18); color:#c4b5fd}
-  .rolechip.user{background:rgba(59,130,246,.16); color:#93c5fd}
-  .nav a{display:flex; gap:10px; align-items:center; padding:10px 12px; border-radius:9px; color:var(--muted); text-decoration:none; font-size:.92rem; font-weight:600; cursor:pointer; margin-bottom:2px}
-  .nav a.active, .nav a:hover{background:#16203c; color:var(--txt)}
-  .side .spacer{flex:1}
-  .me{border-top:1px solid var(--line); padding-top:14px; font-size:.85rem}
-  .me .name{font-weight:700} .me .uid{color:var(--muted); font-size:.78rem}
-  .logout{margin-top:10px; width:100%; padding:9px; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:8px; cursor:pointer; font-weight:600}
-  .logout:hover{color:var(--err); border-color:var(--err)}
-  .main{padding:26px 32px; overflow:auto}
-  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px}
-  .topbar h1{margin:0; font-size:1.4rem}
-  .pill{font-size:.78rem; padding:5px 11px; border-radius:999px; font-weight:700}
-  .pill.on{background:rgba(34,197,94,.15); color:var(--ok)}
-  .pill.off{background:rgba(245,158,11,.15); color:var(--warn)}
-  .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px}
-  .stat{background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:14px; padding:16px}
-  .stat .k{color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em}
-  .stat .v{font-size:1.8rem; font-weight:800; margin-top:6px}
-  .card{background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:14px; padding:20px 22px; margin-bottom:18px}
-  .card h2{margin:0 0 4px; font-size:1.08rem}
-  .card .hint{color:var(--muted); font-size:.84rem; margin:0 0 14px}
-  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-  input,button,select{font-size:.92rem; padding:9px 11px; border-radius:8px; border:1px solid var(--line); background:#0c1426; color:var(--txt)}
-  input[type=file]{padding:7px}
-  button{background:linear-gradient(135deg,var(--brand),var(--brand2)); border:none; color:#fff; font-weight:700; cursor:pointer}
-  button.ghost{background:transparent; border:1px solid var(--line); color:var(--muted)}
-  button.danger{background:transparent; border:1px solid var(--err); color:var(--err); padding:5px 12px; font-size:.82rem}
-  button.danger:hover{background:var(--err); color:#fff; opacity:1}
-  button:hover{opacity:.93}
-  pre{background:#0c1426; border:1px solid var(--line); padding:11px; border-radius:8px; overflow-x:auto; font-size:.82rem; color:var(--muted); white-space:pre-wrap}
-  video,canvas{border:1px solid var(--line); border-radius:8px; max-width:320px; background:#000}
-  table{border-collapse:collapse; width:100%; font-size:.86rem}
-  th,td{border-bottom:1px solid var(--line); padding:8px 10px; text-align:left}
-  th{color:var(--muted); font-weight:600; font-size:.78rem; text-transform:uppercase}
-  .ok{color:var(--ok)} .err{color:var(--err)} .muted{color:var(--muted)}
-  .hidden{display:none}
-  .badge{font-size:.72rem; padding:3px 8px; border-radius:999px; background:#16203c; color:var(--muted)}
-  .badge.yes{background:rgba(34,197,94,.15); color:var(--ok)}
-  .badge.auth{background:rgba(124,58,237,.18); color:#c4b5fd}
-  .kv{display:grid; grid-template-columns:140px 1fr; gap:8px 14px; font-size:.9rem}
-  .kv div:nth-child(odd){color:var(--muted)}
-  @media(max-width:780px){ .layout{grid-template-columns:1fr} .side{display:none} .grid{grid-template-columns:repeat(2,1fr)} }
+
+:root{
+  --bg:#080b14; --bg-2:#0b1020;
+  --surface:#111a30; --surface-2:#0e1528;
+  --glass:rgba(18,26,48,.55); --glass-brd:rgba(124,148,214,.16);
+  --line:#223052; --line-2:#2c3d66;
+
+  --txt:#eaf0fb; --muted:#9aa8c7; --faint:#66739a;
+
+  --brand:#3b82f6; --brand-2:#6366f1; --violet:#8b5cf6; --cyan:#22d3ee;
+
+  --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+
+  --grad-brand:linear-gradient(135deg,var(--brand),var(--violet));
+  --grad-text:linear-gradient(100deg,#8ec7ff,#a78bfa 52%,#39d9ee);
+  --glow-brand:0 10px 40px -8px rgba(59,130,246,.55);
+
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"Cascadia Code","JetBrains Mono","SF Mono",Consolas,monospace;
+  --fs-display:clamp(1.7rem,4.5vw,2.1rem); --fs-body:.95rem; --fs-cap:.75rem;
+
+  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem; --space-5:1.5rem; --space-6:2rem; --space-8:3rem;
+
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-full:999px;
+
+  --e1:0 1px 2px rgba(0,0,0,.3); --e2:0 6px 20px rgba(0,0,0,.35);
+  --e3:0 18px 50px rgba(0,0,0,.5); --e4:0 34px 80px rgba(2,6,20,.65);
+
+  --dur-1:150ms; --dur-2:240ms; --dur-3:360ms; --dur-4:480ms;
+  --ease-out:cubic-bezier(.16,1,.3,1); --ease-io:cubic-bezier(.65,0,.35,1); --spring:cubic-bezier(.22,1.4,.36,1);
+}
+*{box-sizing:border-box}
+body{margin:0; font-family:var(--font-body); color:var(--txt); background:var(--bg)}
+a{color:var(--brand)}
+
+body::before{content:""; position:fixed; inset:0; z-index:-2; background:
+  radial-gradient(900px 500px at 12% -8%, rgba(37,74,158,.5), transparent 60%),
+  radial-gradient(800px 480px at 108% 8%, rgba(88,44,180,.42), transparent 58%),
+  radial-gradient(700px 500px at 60% 115%, rgba(14,90,110,.35), transparent 60%), var(--bg)}
+body::after{content:""; position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+.layout{display:grid; grid-template-columns:252px 1fr; min-height:100vh}
+
+.side{position:relative; background:linear-gradient(180deg,rgba(14,21,40,.86),rgba(9,13,26,.92));
+  backdrop-filter:blur(10px); border-right:1px solid var(--line); padding:20px 14px; display:flex; flex-direction:column; z-index:50}
+.brand{display:flex; align-items:center; gap:10px; margin-bottom:20px}
+.logo{position:relative; width:34px;height:34px;border-radius:9px;background:var(--grad-brand);display:grid;place-items:center;font-weight:800;color:#fff; box-shadow:var(--glow-brand)}
+.logo::after{content:""; position:absolute; inset:0; border-radius:inherit; animation:pulseRing 3s var(--ease-io) infinite}
+@keyframes pulseRing{0%,100%{box-shadow:0 0 0 4px rgba(99,102,241,.16)}50%{box-shadow:0 0 0 9px rgba(99,102,241,0)}}
+.brand b{font-size:1.1rem; letter-spacing:-.01em; background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent}
+.rolechip{font-family:var(--font-mono); font-size:.68rem; font-weight:700; letter-spacing:.06em; padding:4px 10px; border-radius:var(--r-full); margin-bottom:18px; display:inline-block; width:fit-content}
+.rolechip.authority{background:rgba(139,92,246,.18); color:#c4b5fd; box-shadow:inset 0 0 0 1px rgba(139,92,246,.3)}
+.rolechip.user{background:rgba(59,130,246,.16); color:#93c5fd; box-shadow:inset 0 0 0 1px rgba(59,130,246,.3)}
+.nav{position:relative; display:flex; flex-direction:column}
+.nav-ind{position:absolute; left:0; top:0; width:100%; height:40px; border-radius:10px; z-index:0; opacity:0;
+  background:linear-gradient(100deg,rgba(59,130,246,.22),rgba(139,92,246,.14));
+  box-shadow:inset 0 0 0 1px rgba(124,160,255,.25);
+  transition:transform var(--dur-3) var(--spring), height var(--dur-3) var(--spring), opacity var(--dur-2)}
+.nav-ind::before{content:""; position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:3px; background:var(--grad-brand)}
+.nav a{position:relative; z-index:1; display:flex; gap:11px; align-items:center; padding:10px 12px; border-radius:10px; color:var(--muted); text-decoration:none; font-size:.92rem; font-weight:600; cursor:pointer; margin-bottom:2px;
+  transition:color var(--dur-2) var(--ease-out), transform var(--dur-2) var(--spring)}
+.nav a .ico{width:19px; height:19px; flex:none; opacity:.85; transition:transform var(--dur-2) var(--spring)}
+.nav a:hover{color:var(--txt); transform:translateX(2px)}
+.nav a:hover .ico{transform:scale(1.12)}
+.nav a.active{color:#fff}
+.nav a.active .ico{opacity:1; color:#a9c7ff}
+.side .spacer{flex:1}
+.me{border-top:1px solid var(--line); padding-top:14px; font-size:.85rem}
+.me .name{font-weight:700} .me .uid{color:var(--muted); font-size:.78rem; font-family:var(--font-mono)}
+.logout{margin-top:10px; width:100%; padding:9px; border:1px solid var(--line); background:transparent; color:var(--muted); border-radius:var(--r-sm); cursor:pointer; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:color var(--dur-2), border-color var(--dur-2), background var(--dur-2)}
+.logout .ico{width:16px;height:16px}
+.logout:hover{color:var(--err); border-color:var(--err); background:rgba(239,68,68,.08)}
+
+.mobile-bar{display:none; position:fixed; top:0; left:0; right:0; height:56px; z-index:45; align-items:center; gap:12px; padding:0 14px;
+  background:rgba(9,13,26,.8); backdrop-filter:blur(14px); border-bottom:1px solid var(--line)}
+.mobile-bar b{background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent}
+.menu-btn{width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:rgba(18,26,48,.6); display:grid; place-items:center; cursor:pointer; padding:0}
+.menu-btn span{display:block; width:18px; height:2px; background:var(--txt); border-radius:2px; transition:transform var(--dur-2) var(--ease-out), opacity var(--dur-1)}
+.menu-btn span+span{margin-top:4px}
+body.nav-open .menu-btn span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+body.nav-open .menu-btn span:nth-child(2){opacity:0}
+body.nav-open .menu-btn span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+.scrim{position:fixed; inset:0; z-index:44; background:rgba(3,6,16,.6); backdrop-filter:blur(2px); opacity:0; pointer-events:none; transition:opacity var(--dur-2)}
+
+.main{padding:26px 32px; overflow:auto; min-width:0}
+.topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px}
+.topbar h1{margin:0; font-size:1.4rem; letter-spacing:-.01em}
+.pill{font-size:.75rem; padding:5px 11px; border-radius:var(--r-full); font-weight:700; font-family:var(--font-mono)}
+.pill.on{background:rgba(34,197,94,.15); color:var(--ok); box-shadow:inset 0 0 0 1px rgba(34,197,94,.3)}
+.pill.off{background:rgba(245,158,11,.15); color:var(--warn); box-shadow:inset 0 0 0 1px rgba(245,158,11,.3)}
+
+.grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:22px}
+.stat{position:relative; overflow:hidden; background:linear-gradient(180deg,var(--surface),var(--surface-2)); border:1px solid var(--line); border-radius:var(--r-lg); padding:16px;
+  transition:transform var(--dur-2) var(--spring), border-color var(--dur-2), box-shadow var(--dur-2)}
+.stat::before{content:""; position:absolute; inset:0; opacity:0; transition:opacity var(--dur-2);
+  background:radial-gradient(120px 80px at 80% 0%, rgba(99,102,241,.25), transparent 70%)}
+.stat:hover{transform:translateY(-3px); border-color:var(--line-2); box-shadow:var(--e2)}
+.stat:hover::before{opacity:1}
+.stat .k{color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; font-family:var(--font-mono)}
+.stat .v{font-size:1.9rem; font-weight:800; margin-top:6px; letter-spacing:-.02em}
+.card{background:linear-gradient(180deg,var(--surface),var(--surface-2)); border:1px solid var(--line); border-radius:var(--r-lg); padding:20px 22px; margin-bottom:18px; box-shadow:var(--e1)}
+.card h2{margin:0 0 4px; font-size:1.08rem; letter-spacing:-.01em}
+.card .hint{color:var(--muted); font-size:.84rem; margin:0 0 14px}
+.row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+input,button,select,textarea{font-size:.92rem; padding:9px 11px; border-radius:var(--r-sm); border:1px solid var(--line); background:rgba(8,12,26,.7); color:var(--txt); font-family:inherit;
+  transition:border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), background var(--dur-2)}
+input[type=file]{padding:7px}
+input[type=file]::file-selector-button{font-family:inherit; margin-right:10px; padding:7px 12px; border-radius:var(--r-sm); border:1px solid var(--line); background:rgba(124,148,214,.12); color:var(--txt); font-weight:600; cursor:pointer; transition:background var(--dur-2), border-color var(--dur-2)}
+input[type=file]::file-selector-button:hover{background:rgba(59,130,246,.18); border-color:var(--brand)}
+input[type=datetime-local],input[type=number]{color-scheme:dark}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--brand); background:rgba(8,12,26,.95); box-shadow:0 0 0 3px rgba(59,130,246,.22)}
+button{background:var(--grad-brand); border:none; color:#fff; font-weight:700; cursor:pointer; position:relative; overflow:hidden; box-shadow:var(--glow-brand);
+  transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out), filter var(--dur-2)}
+button::after{content:""; position:absolute; top:0; left:-120%; width:55%; height:100%; background:linear-gradient(100deg,transparent,rgba(255,255,255,.25),transparent); transform:skewX(-18deg)}
+button:hover{transform:translateY(-2px); box-shadow:0 16px 40px -12px rgba(99,102,241,.7); filter:saturate(1.06)}
+button:hover::after{animation:swipe .8s var(--ease-out)}
+button:active{transform:translateY(0) scale(.99)}
+button:focus-visible{outline:none; box-shadow:0 0 0 3px rgba(255,255,255,.5), var(--glow-brand)}
+@keyframes swipe{to{left:130%}}
+button.ghost{background:transparent; border:1px solid var(--line); color:var(--muted); box-shadow:none}
+button.ghost::after{display:none}
+button.ghost:hover{color:var(--txt); border-color:var(--line-2); background:rgba(124,148,214,.08); box-shadow:none}
+button.danger{background:transparent; border:1px solid var(--err); color:var(--err); padding:5px 12px; font-size:.82rem; box-shadow:none}
+button.danger::after{display:none}
+button.danger:hover{background:var(--err); color:#fff}
+button .ico{width:15px;height:15px; vertical-align:-2px}
+pre{background:rgba(8,12,26,.7); border:1px solid var(--line); padding:11px; border-radius:var(--r-sm); overflow-x:auto; font-size:.82rem; color:var(--muted); white-space:pre-wrap; font-family:var(--font-mono)}
+video,canvas{border:1px solid var(--line); border-radius:var(--r-sm); max-width:320px; background:#000}
+table{border-collapse:collapse; width:100%; font-size:.86rem}
+th,td{border-bottom:1px solid var(--line); padding:9px 10px; text-align:left}
+th{color:var(--muted); font-weight:600; font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono)}
+tbody tr{transition:background var(--dur-1)}
+tbody tr:hover{background:rgba(124,148,214,.06)}
+.ok{color:var(--ok)} .err{color:var(--err)} .muted{color:var(--muted)}
+.hidden{display:none}
+.badge{font-size:.72rem; padding:3px 8px; border-radius:var(--r-full); background:rgba(124,148,214,.12); color:var(--muted)}
+.badge.yes{background:rgba(34,197,94,.15); color:var(--ok)}
+.badge.auth{background:rgba(139,92,246,.18); color:#c4b5fd}
+.kv{display:grid; grid-template-columns:150px 1fr; gap:8px 14px; font-size:.9rem}
+.kv div:nth-child(odd){color:var(--muted); font-family:var(--font-mono); font-size:.82rem}
+.checklist{display:flex; flex-direction:column; gap:6px; max-height:230px; overflow:auto; border:1px solid var(--line); border-radius:var(--r-sm); padding:10px; background:rgba(8,12,26,.5); min-width:280px}
+.checklist label{display:flex; align-items:center; gap:8px; font-size:.9rem; color:var(--txt); cursor:pointer; padding:4px 6px; border-radius:6px; transition:background var(--dur-1)}
+.checklist label:hover{background:rgba(124,148,214,.08)}
+.checklist input{width:auto}
+.alertcard{position:relative; border:1px solid rgba(239,68,68,.4); border-radius:var(--r-md); padding:12px 14px; margin-bottom:10px; background:rgba(239,68,68,.06); overflow:hidden;
+  transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2)}
+.alertcard::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--err)}
+.alertcard:hover{transform:translateX(3px); box-shadow:var(--e2)}
+.navbadge{background:var(--err); color:#fff; font-size:.7rem; font-weight:700; padding:1px 7px; border-radius:var(--r-full); margin-left:auto; animation:badgePulse 2s var(--ease-io) infinite}
+@keyframes badgePulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
+
+.skel{display:inline-block; height:12px; width:100%; border-radius:6px;
+  background:linear-gradient(90deg, rgba(148,168,220,.07) 25%, rgba(148,168,220,.2) 37%, rgba(148,168,220,.07) 63%);
+  background-size:400% 100%; animation:shimmer 1.4s ease infinite}
+@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+
+.main section:not(.hidden) .stat{animation:revealUp .5s var(--ease-out) both}
+.main section:not(.hidden) .card{animation:revealUp .5s var(--ease-out) both}
+.main section:not(.hidden) .stat:nth-child(2){animation-delay:.05s}
+.main section:not(.hidden) .stat:nth-child(3){animation-delay:.1s}
+.main section:not(.hidden) .stat:nth-child(4){animation-delay:.15s}
+.main section:not(.hidden) .card:nth-of-type(2){animation-delay:.08s}
+tbody tr{animation:revealUp .4s var(--ease-out) both}
+#users_body tr:nth-child(2){animation-delay:.03s} #users_body tr:nth-child(3){animation-delay:.06s}
+#users_body tr:nth-child(4){animation-delay:.09s} #users_body tr:nth-child(5){animation-delay:.12s}
+.alertcard{animation:revealUp .4s var(--ease-out) both}
+@keyframes revealUp{from{opacity:0; transform:translateY(12px)}to{opacity:1; transform:none}}
+
+.main::-webkit-scrollbar,.checklist::-webkit-scrollbar{width:10px}
+.main::-webkit-scrollbar-thumb,.checklist::-webkit-scrollbar-thumb{background:var(--line-2); border-radius:10px; border:2px solid transparent; background-clip:content-box}
+
+@media(max-width:780px){
+  .layout{grid-template-columns:1fr}
+  .mobile-bar{display:flex}
+  .menu-btn{display:grid}
+  .side{position:fixed; top:0; left:0; bottom:0; width:264px; transform:translateX(-104%);
+    transition:transform var(--dur-3) var(--ease-out)}
+  body.nav-open .side{transform:none; box-shadow:var(--e4)}
+  body.nav-open .scrim{opacity:1; pointer-events:auto}
+  .main{padding:72px 18px 22px}
+  .grid{grid-template-columns:repeat(2,1fr)}
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
+}
 </style>
 </head>
 <body>
+<div class="mobile-bar">
+  <button class="menu-btn" aria-label="Menu" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+  <div class="brand" style="margin:0"><div class="logo" style="width:28px;height:28px;font-size:15px">o</div><b>occlubio</b></div>
+</div>
+<div class="scrim" onclick="toggleMenu(false)"></div>
+
 <div class="layout">
   <aside class="side">
     <div class="brand"><div class="logo">o</div><b>occlubio</b></div>
@@ -71,7 +211,7 @@
     <div class="me">
       <div class="name" id="me_name">—</div>
       <div class="uid" id="me_uid"></div>
-      <button class="logout" onclick="logout()">Sign out</button>
+      <button class="logout" onclick="logout()"><span id="logout_ico" class="ico"></span> Sign out</button>
     </div>
   </aside>
 
@@ -81,139 +221,60 @@
       <span id="enroll_pill" class="pill off">not enrolled</span>
     </div>
 
-    <!-- ============ AUTHORITY: OVERVIEW ============ -->
     <section data-view="overview" class="hidden">
       <div class="grid">
         <div class="stat"><div class="k">Total users</div><div class="v" id="s_users">–</div></div>
         <div class="stat"><div class="k">Enrolled faces</div><div class="v" id="s_enrolled">–</div></div>
         <div class="stat"><div class="k">Authorities</div><div class="v" id="s_auth">–</div></div>
-        <div class="stat"><div class="k">Identify jobs</div><div class="v" id="s_jobs">0</div></div>
+        <div class="stat"><div class="k">Unknown alerts</div><div class="v" id="s_alerts">0</div></div>
       </div>
       <div class="card">
         <h2>Operator console</h2>
-        <p class="hint">You are signed in as an <b>authority</b>. You can run video identification against the enrolled gallery and review all registered subjects. Processing is CPU-bound here — raise the frame stride for speed.</p>
+        <p class="hint">You are signed in as an <b>authority</b>. Search a clip for a specific person, review registered subjects, and check unknown-person alerts. Processing is CPU-bound here — raise the frame stride for speed.</p>
         <div class="row">
-          <button onclick="show('identify')">Identify a video</button>
-          <button class="ghost" onclick="show('users')">View enrolled users</button>
+          <button onclick="show('identify')">Search a video</button>
+          <button class="ghost" onclick="show('users')">View subjects</button>
+          <button class="ghost" onclick="show('alerts')">Unknown alerts</button>
         </div>
       </div>
     </section>
 
-    <!-- ============ AUTHORITY: IDENTIFY ============ -->
     <section data-view="identify" class="hidden">
       <div class="card">
-        <h2>Identify people in a video</h2>
-        <p class="hint">Upload a clip; faces are matched against the enrolled gallery. Returns a report plus an annotated MP4. Higher stride = fewer frames = faster (less accurate).</p>
+        <h2>Find a person in a video</h2>
+        <p class="hint">Search a clip for one person — pick an enrolled subject or upload their photo. Give the clip's real start/end time so appearances map to real gate timestamps. Any un-enrolled faces are logged as alerts.</p>
         <div class="row">
-          <input type="file" id="v_file" accept="video/*" />
-          <label class="muted">stride <input id="v_stride" type="number" value="2" min="1" style="width:64px" /></label>
-          <button onclick="identify()">Upload &amp; identify</button>
+          <label class="muted"><input type="radio" name="tmode" value="id" checked onclick="setTMode('id')" style="width:auto"> Enrolled subject</label>
+          <label class="muted"><input type="radio" name="tmode" value="photo" onclick="setTMode('photo')" style="width:auto"> Upload photo</label>
         </div>
-        <pre id="v_out">No job submitted.</pre>
-        <div id="v_result"></div>
-      </div>
-    </section>
+        <div class="row" id="t_id_wrap" style="margin-top:8px">
+          <label class="muted">Subject <select id="t_subject" style="min-width:260px"><option value="">—</option></select></label>
+        </div>
+        <div class="row hidden" id="t_photo_wrap" style="margin-top:8px">
+          <label class="muted">Target photo <input type="file" id="t_photo" accept="image
+const ICO = {
+  grid:'<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+  video:'<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  userplus:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
+  user:'<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  inbox:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  refresh:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+};
+const svg = k => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[k]||''}</svg>`;
+function paintIcons(){ document.querySelectorAll('[data-ico]').forEach(el=>{ el.outerHTML = svg(el.getAttribute('data-ico')); }); }
 
-    <!-- ============ AUTHORITY: USERS ============ -->
-    <section data-view="users" class="hidden">
-      <div class="card">
-        <h2>Registered subjects</h2>
-        <p class="hint">Everyone on the platform and whether they have a face template in the gallery.</p>
-        <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadUsers()">Refresh</button></div>
-        <table><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Enrolled</th><th></th></tr></thead>
-          <tbody id="users_body"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
-        </table>
-      </div>
-    </section>
+const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    <!-- ============ AUTHORITY: SEND INFO ============ -->
-    <section data-view="messages" class="hidden">
-      <div class="card">
-        <h2>Pass information to participants</h2>
-        <p class="hint">Send a notice to one participant or broadcast it to everyone. Participants see it under <b>Notices</b> on their dashboard.</p>
-        <div class="row">
-          <label class="muted">Recipient
-            <select id="m_to" style="min-width:200px"><option value="">All participants</option></select>
-          </label>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <textarea id="m_body" rows="3" placeholder="Type the information / notice…" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); background:#0c1426; color:var(--txt); font-family:inherit; font-size:.92rem"></textarea>
-        </div>
-        <div class="row" style="margin-top:10px"><button onclick="sendMessage()">Send notice</button></div>
-        <pre id="m_out" class="hidden"></pre>
-      </div>
-      <div class="card">
-        <h2>Sent notices</h2>
-        <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadSent()">Refresh</button></div>
-        <table><thead><tr><th>When</th><th>To</th><th>Message</th></tr></thead>
-          <tbody id="sent_body"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody></table>
-      </div>
-    </section>
-
-    <!-- ============ USER: NOTICES ============ -->
-    <section data-view="notices" class="hidden">
-      <div class="card">
-        <h2>Notices from authority</h2>
-        <p class="hint">Information passed to you by surveillance operators (direct messages and broadcasts).</p>
-        <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadNotices()">Refresh</button></div>
-        <div id="notices_list"><p class="muted">Loading…</p></div>
-      </div>
-    </section>
-
-    <!-- ============ USER: PROFILE ============ -->
-    <section data-view="profile" class="hidden">
-      <div class="card">
-        <h2>My profile</h2>
-        <p class="hint">Your account on the occlubio platform.</p>
-        <div class="kv">
-          <div>Username</div><div id="p_user">–</div>
-          <div>Email</div><div id="p_email">–</div>
-          <div>Role</div><div id="p_role">–</div>
-          <div>Face enrolled</div><div id="p_enrolled">–</div>
-        </div>
-      </div>
-      <div class="card">
-        <h2>What you can do</h2>
-        <p class="hint">As a <b>user</b> you can enroll and update your own face template. Running video identification is restricted to authority operators.</p>
-        <button onclick="show('enroll')">Enroll my face</button>
-      </div>
-    </section>
-
-    <!-- ============ USER + AUTHORITY: ENROLL ============ -->
-    <section data-view="enroll" class="hidden">
-      <div class="card">
-        <h2 id="enroll_title">Enroll my face</h2>
-        <p class="hint">Upload photos and/or capture frames from your webcam. Quality-gated; duplicate faces are rejected unless forced.</p>
-        <div id="enroll_target" class="row hidden" style="margin-bottom:6px">
-          <label class="muted">Subject user ID <input id="e_uid_in" type="number" style="width:90px"></label>
-        </div>
-        <div class="row"><input type="file" id="e_files" accept="image/*" multiple /></div>
-        <div class="row" style="margin-top:10px">
-          <button class="ghost" onclick="startCam()">Start webcam</button>
-          <button class="ghost" onclick="snap()">Capture frame</button>
-          <span id="cam_count" class="muted">0 captured</span>
-        </div>
-        <div class="row" style="margin-top:10px">
-          <video id="cam" autoplay playsinline width="320" height="240" class="hidden"></video>
-          <canvas id="canvas" width="320" height="240" class="hidden"></canvas>
-        </div>
-        <div class="row" style="margin-top:12px">
-          <label class="muted"><input type="checkbox" id="e_force" style="width:auto"> force (ignore duplicate)</label>
-          <button onclick="enroll()">Enroll</button>
-        </div>
-        <pre id="e_out">Not enrolled yet.</pre>
-      </div>
-    </section>
-  </main>
-</div>
-
-<script>
-// ───── session gate ─────
 const S = JSON.parse(localStorage.getItem('occlubio_session') || 'null');
 if(!S){ location.replace('/login'); }
 const isAuthority = S?.role === 'authority';
 
-// authenticated fetch — attaches bearer token, bounces to login on 401
 async function api(path, opts={}){
   opts.headers = Object.assign({'Authorization':'Bearer '+S.token}, opts.headers || {});
   const res = await fetch(path, opts);
@@ -226,11 +287,11 @@ function logout(){
   });
 }
 
-// ───── identity header ─────
-me_name.textContent = S?.username || '';
-me_uid.textContent  = 'ID ' + (S?.user_id ?? '');
+me_name.textContent = S?.full_name || S?.username || '';
+me_uid.textContent  = S?.roll_number ? ('Roll ' + S.roll_number) : ('@' + (S?.username ?? ''));
 rolechip.textContent = (S?.role || 'user').toUpperCase();
 rolechip.className = 'rolechip ' + (isAuthority ? 'authority' : 'user');
+document.getElementById('logout_ico').outerHTML = svg('logout');
 
 function setEnrolled(on){
   enroll_pill.textContent = on ? 'enrolled' : 'not enrolled';
@@ -239,91 +300,129 @@ function setEnrolled(on){
   if(p_enrolled) p_enrolled.textContent = on ? 'Yes' : 'No';
 }
 setEnrolled(!!S?.enrolled);
-// authority enrolls "subjects", not just self
 if(isAuthority){ enroll_pill.classList.add('hidden'); }
 
-// ───── role-based navigation ─────
 const NAV = {
   authority: [
-    {v:'overview', label:'📊 Overview'},
-    {v:'identify', label:'🎬 Identify video'},
-    {v:'users',    label:'👥 Subjects'},
-    {v:'messages', label:'✉️ Send info'},
-    {v:'enroll',   label:'🧑 Enroll subject'},
+    {v:'overview', label:'Overview',  icon:'grid'},
+    {v:'identify', label:'Identify video', icon:'video'},
+    {v:'users',    label:'Subjects',  icon:'users'},
+    {v:'alerts',   label:'Alerts',    icon:'bell', badge:true},
+    {v:'messages', label:'Send info', icon:'send'},
+    {v:'enroll',   label:'Enroll subject', icon:'userplus'},
   ],
   user: [
-    {v:'profile',  label:'🪪 My profile'},
-    {v:'notices',  label:'📩 Notices'},
-    {v:'enroll',   label:'🧑 Enroll my face'},
+    {v:'profile',  label:'My profile', icon:'user'},
+    {v:'notices',  label:'Notices',    icon:'inbox'},
+    {v:'enroll',   label:'Enroll my face', icon:'userplus'},
   ],
 };
-const TITLES = {overview:'Overview', identify:'Identify video', users:'Registered subjects',
-  messages:'Send information', notices:'Notices', profile:'My profile',
-  enroll: isAuthority ? 'Enroll subject' : 'Enroll my face'};
+const TITLES = {overview:'Overview', identify:'Find a person in a video', users:'Registered subjects',
+  activity:'Gate activity', alerts:'Unknown-person alerts', messages:'Send information', notices:'Notices',
+  profile:'My profile', enroll: isAuthority ? 'Enroll subject' : 'Enroll my face'};
 const items = NAV[isAuthority ? 'authority' : 'user'];
-nav.innerHTML = items.map((it,i)=>`<a data-view="${it.v}" class="${i===0?'active':''}" onclick="show('${it.v}')">${it.label}</a>`).join('');
+nav.innerHTML = '<span class="nav-ind" id="nav_ind"></span>' + items.map((it,i)=>
+  `<a data-view="${it.v}" class="${i===0?'active':''}" onclick="show('${it.v}')">
+     ${svg(it.icon)}<span>${it.label}</span>${it.badge?'<span id="alert_badge" class="navbadge hidden">0</span>':''}
+   </a>`).join('');
 
-// authority enroll targets an arbitrary subject id
 if(isAuthority){
   enroll_title.textContent = 'Enroll a subject';
   enroll_target.classList.remove('hidden');
+}
+
+function moveNavInd(){
+  const a = nav.querySelector('a.active'); const ind = document.getElementById('nav_ind');
+  if(a && ind){ ind.style.transform = `translateY(${a.offsetTop}px)`; ind.style.height = a.offsetHeight+'px'; ind.style.opacity = 1; }
+}
+function toggleMenu(force){
+  const open = force!==undefined ? force : !document.body.classList.contains('nav-open');
+  document.body.classList.toggle('nav-open', open);
 }
 
 function show(view){
   document.querySelectorAll('main section').forEach(s => s.classList.toggle('hidden', s.dataset.view !== view));
   document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('active', a.dataset.view === view));
   view_title.textContent = TITLES[view] || view;
+  moveNavInd();
+  toggleMenu(false);
   if(view === 'users') loadUsers();
   if(view === 'overview') loadStats();
+  if(view === 'identify') loadTargets();
+  if(view === 'alerts') loadAlerts();
   if(view === 'profile') loadProfile();
+  if(view === 'enroll' && isAuthority) loadEnrollTargets();
   if(view === 'messages'){ loadRecipients(); loadSent(); }
   if(view === 'notices') loadNotices();
 }
 
-// ───── toast ─────
+function countUp(el, target, dur=850){
+  if(el==null) return;
+  target = Number(target)||0;
+  if(prefersReduced){ el.textContent = target; return; }
+  const start = performance.now();
+  (function tick(now){ const p = Math.min(1,(now-start)/dur); const e = 1-Math.pow(1-p,3);
+    el.textContent = Math.round(target*e); if(p<1) requestAnimationFrame(tick); })(start);
+}
+function skelRows(cols, n=4){
+  let r=''; for(let i=0;i<n;i++){ r+='<tr>'+Array.from({length:cols}).map(()=>'<td><span class="skel"></span></td>').join('')+'</tr>'; }
+  return r;
+}
+function skelCards(n=3){
+  let r=''; for(let i=0;i<n;i++){ r+='<div style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px"><span class="skel" style="width:40%"></span><div style="height:8px"></div><span class="skel"></span></div>'; }
+  return r;
+}
+
 function toast(msg, kind){
   const bg = kind==='err' ? '#ef4444' : kind==='ok' ? '#22c55e' : '#3b82f6';
   const t = document.createElement('div');
   t.textContent = msg;
-  t.style.cssText = `position:fixed;top:16px;right:16px;z-index:9999;padding:12px 16px;border-radius:10px;color:#fff;font-size:.92rem;box-shadow:0 8px 24px rgba(0,0,0,.4);background:${bg};max-width:360px`;
+  t.style.cssText = `position:fixed;top:16px;right:16px;z-index:9999;padding:12px 16px;border-radius:12px;color:#fff;font-size:.92rem;box-shadow:0 12px 30px rgba(0,0,0,.5);background:${bg};max-width:360px;transform:translateX(120%);transition:transform .4s cubic-bezier(.16,1,.3,1)`;
   document.body.appendChild(t);
-  setTimeout(()=>{ t.style.transition='opacity .4s'; t.style.opacity='0'; setTimeout(()=>t.remove(),400); }, 4000);
+  requestAnimationFrame(()=>{ t.style.transform='translateX(0)'; });
+  setTimeout(()=>{ t.style.transform='translateX(120%)'; setTimeout(()=>t.remove(),400); }, 4000);
 }
 
-// ───── profile (user) ─────
+const label = u => (u.roll_number || u.username);
+
 async function loadProfile(){
   try{
     const me = await (await api('/api/me')).json();
+    p_name.textContent = me.full_name || '—';
+    p_roll.textContent = me.roll_number || '—';
     p_user.textContent = me.username; p_email.textContent = me.email;
     p_role.textContent = me.role; p_enrolled.textContent = me.enrolled ? 'Yes' : 'No';
     setEnrolled(me.enrolled);
   }catch(e){}
 }
 
-// ───── stats + users (authority) ─────
-let jobCount = 0;
 async function loadStats(){
   try{
     const users = await (await api('/api/users')).json();
-    s_users.textContent = users.length;
-    s_enrolled.textContent = users.filter(u=>u.enrolled).length;
-    s_auth.textContent = users.filter(u=>u.role==='authority').length;
+    countUp(s_users, users.length);
+    countUp(s_enrolled, users.filter(u=>u.enrolled).length);
+    countUp(s_auth, users.filter(u=>u.role==='authority').length);
   }catch(e){}
+  refreshAlertBadge();
 }
 async function loadUsers(){
   const body = users_body;
-  body.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
+  body.innerHTML = skelRows(7);
   try{
     const users = await (await api('/api/users')).json();
     body.innerHTML = users.map(u => `<tr>
       <td>${u.id}</td>
-      <td>${u.username}${u.id===S.user_id?' <span class="badge">you</span>':''}</td>
+      <td>${label(u)}${u.id===S.user_id?' <span class="badge">you</span>':''}</td>
+      <td>${u.full_name||'—'}</td>
       <td class="muted">${u.email}</td>
-      <td>${u.role==='authority'?'<span class="badge auth">authority</span>':'<span class="badge">user</span>'}</td>
+      <td>${u.role==='authority'?'<span class="badge auth">authority</span>':'<span class="badge">student</span>'}</td>
       <td>${u.enrolled?'<span class="badge yes">yes</span>':'<span class="badge">no</span>'}</td>
-      <td>${u.id===S.user_id ? '' : `<button class="danger" onclick="removeUser(${u.id},'${u.username.replace(/'/g,"\\'")}')">Remove</button>`}</td></tr>`).join('')
-      || '<tr><td colspan="6" class="muted">No users.</td></tr>';
-  }catch(e){ body.innerHTML = '<tr><td colspan="6" class="err">Failed to load.</td></tr>'; }
+      <td class="row" style="gap:6px">
+        <button class="ghost" style="padding:5px 10px;font-size:.82rem" onclick="openActivity(${u.id},'${(label(u)+' — '+(u.full_name||'')).replace(/'/g,"\\'")}')">${svg('activity')} Activity</button>
+        ${u.id===S.user_id ? '' : `<button class="danger" onclick="removeUser(${u.id},'${label(u).replace(/'/g,"\\'")}')">${svg('trash')} Remove</button>`}
+      </td></tr>`).join('')
+      || '<tr><td colspan="7" class="muted">No users.</td></tr>';
+  }catch(e){ body.innerHTML = '<tr><td colspan="7" class="err">Failed to load.</td></tr>'; }
 }
 
 async function removeUser(id, name){
@@ -334,26 +433,96 @@ async function removeUser(id, name){
   else { toast(`Remove failed: ${j.detail||''}`, 'err'); }
 }
 
-// ───── messages: authority sends, users read ─────
+const fmtDT = s => s ? s.replace('T',' ') : '—';
+async function openActivity(id, name){
+  act_title.textContent = `Gate activity — ${name}`;
+  show('activity');
+  act_body.innerHTML = skelRows(7,3);
+  act_total.textContent = act_visible.textContent = '–';
+  act_first.textContent = act_last.textContent = '–'; act_cams.textContent = '';
+  try{
+    const r = await (await api(`/api/users/${id}/sightings`)).json();
+    countUp(act_total, r.total_days);
+    act_first.textContent   = fmtDT(r.first_seen);
+    act_last.textContent    = fmtDT(r.last_seen);
+    act_visible.textContent = (r.total_visible_s ?? 0) + 's';
+    const cams = Object.entries(r.by_camera||{}).map(([c,n])=>`${c}: ${n}`).join(' · ');
+    act_cams.textContent = cams ? `By camera — ${cams}` : '';
+    if(!r.sightings.length){
+      act_body.innerHTML = '<tr><td colspan="7" class="muted">No gate crossings recorded yet. Run a search on footage that contains this subject.</td></tr>';
+      return;
+    }
+    act_body.innerHTML = r.sightings.map(s=>`<tr>
+      <td>${(s.entered_at||'').slice(0,10)}</td>
+      <td><span class="badge">${s.camera}</span></td>
+      <td>${fmtDT(s.entered_at)}</td>
+      <td>${fmtDT(s.exited_at)}</td>
+      <td>${s.appearances}</td>
+      <td>${s.duration_s}s</td>
+      <td>${s.confidence}</td></tr>`).join('');
+  }catch(e){ act_body.innerHTML = '<tr><td colspan="7" class="err">Failed to load activity.</td></tr>'; }
+}
+
+async function refreshAlertBadge(){
+  if(!isAuthority) return;
+  try{
+    const r = await (await api('/api/alerts')).json();
+    const b = document.getElementById('alert_badge');
+    if(b){ b.textContent = r.unread; b.classList.toggle('hidden', !r.unread); }
+    if(typeof s_alerts !== 'undefined' && s_alerts) countUp(s_alerts, r.alerts.length);
+  }catch(e){}
+}
+async function loadAlerts(){
+  alerts_list.innerHTML = skelCards(3);
+  try{
+    const r = await (await api('/api/alerts')).json();
+    if(!r.alerts.length){
+      alerts_list.innerHTML = '<p class="muted">No unknown-person alerts yet.</p>';
+    } else {
+      alerts_list.innerHTML = r.alerts.map(a=>`<div class="alertcard">
+        <div class="row" style="justify-content:space-between">
+          <b class="err">⚠ ${a.label} — unknown person</b>
+          ${a.seen?'':'<span class="badge" style="background:var(--err);color:#fff">new</span>'}</div>
+        <div class="muted" style="font-size:.85rem; margin-top:6px">
+          camera <b style="color:var(--txt)">${a.camera}</b> ·
+          present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} (${a.duration_s}s) · job #${a.job_id}</div>
+      </div>`).join('');
+    }
+    await api('/api/alerts/read', {method:'POST'});
+    refreshAlertBadge();
+  }catch(e){ alerts_list.innerHTML = '<p class="err">Failed to load alerts.</p>'; }
+}
+
 async function loadRecipients(){
+  m_recips.innerHTML = '<span class="muted">Loading…</span>';
   try{
     const users = await (await api('/api/users')).json();
-    m_to.innerHTML = '<option value="">All participants</option>' +
-      users.filter(u=>u.id!==S.user_id)
-           .map(u=>`<option value="${u.id}">${u.username} (id ${u.id})</option>`).join('');
-  }catch(e){}
+    const parts = users.filter(u=>u.id!==S.user_id);
+    m_recips.innerHTML =
+      `<label><input type="checkbox" id="m_all" onchange="toggleAll()"> <b>All participants (broadcast)</b></label>` +
+      parts.map(u=>`<label><input type="checkbox" class="m_rcp" value="${u.id}"> ${label(u)} — ${u.full_name||''}</label>`).join('');
+  }catch(e){ m_recips.innerHTML = '<span class="err">Failed to load.</span>'; }
+}
+function toggleAll(){
+  const all = document.getElementById('m_all').checked;
+  document.querySelectorAll('.m_rcp').forEach(c=>{ c.checked=false; c.disabled=all; });
 }
 async function sendMessage(){
   const body = m_body.value.trim();
   if(!body){ toast('Type a message first', 'err'); return; }
-  const payload = { body, recipient_id: m_to.value ? parseInt(m_to.value,10) : null };
-  const res = await api('/api/messages', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-  const j = await res.json();
-  if(res.ok){ toast(`Sent to ${j.recipient}`, 'ok'); m_body.value=''; loadSent(); }
-  else { toast(`Send failed: ${j.detail||''}`, 'err'); }
+  let recipient_ids = null;
+  const all = document.getElementById('m_all');
+  if(!all || !all.checked){
+    recipient_ids = [...document.querySelectorAll('.m_rcp:checked')].map(c=>parseInt(c.value,10));
+    if(!recipient_ids.length){ toast('Select recipients or choose broadcast', 'err'); return; }
+  }
+  const res = await api('/api/messages', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({body, recipient_ids})});
+  const arr = await res.json();
+  if(res.ok){ toast(`Sent to ${recipient_ids ? recipient_ids.length : 'all'} recipient(s)`, 'ok'); m_body.value=''; loadRecipients(); loadSent(); }
+  else { toast(`Send failed: ${arr.detail||''}`, 'err'); }
 }
 async function loadSent(){
-  sent_body.innerHTML = '<tr><td colspan="3" class="muted">Loading…</td></tr>';
+  sent_body.innerHTML = skelRows(3);
   try{
     const msgs = await (await api('/api/messages')).json();
     sent_body.innerHTML = msgs.map(m=>`<tr>
@@ -364,11 +533,11 @@ async function loadSent(){
   }catch(e){ sent_body.innerHTML = '<tr><td colspan="3" class="err">Failed to load.</td></tr>'; }
 }
 async function loadNotices(){
-  notices_list.innerHTML = '<p class="muted">Loading…</p>';
+  notices_list.innerHTML = skelCards(3);
   try{
     const msgs = await (await api('/api/me/messages')).json();
     if(!msgs.length){ notices_list.innerHTML = '<p class="muted">No notices yet.</p>'; return; }
-    notices_list.innerHTML = msgs.map(m=>`<div style="border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px; background:#0c1426">
+    notices_list.innerHTML = msgs.map(m=>`<div style="border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:rgba(8,12,26,.5)">
       <div class="muted" style="font-size:.78rem; margin-bottom:5px">
         from <b style="color:var(--txt)">${m.sender}</b> · ${m.created_at.replace('T',' ')}
         ${m.recipient==='All participants'?' · <span class="badge">broadcast</span>':''}</div>
@@ -376,32 +545,58 @@ async function loadNotices(){
   }catch(e){ notices_list.innerHTML = '<p class="err">Failed to load.</p>'; }
 }
 
-// ───── webcam capture ─────
+async function loadTargets(){
+  try{
+    const users = await (await api('/api/users')).json();
+    const enrolled = users.filter(u=>u.role==='user' && u.enrolled);
+    t_subject.innerHTML = '<option value="">— pick a subject —</option>' +
+      enrolled.map(u=>`<option value="${u.id}">${label(u)} — ${u.full_name||''}</option>`).join('');
+  }catch(e){}
+}
+async function loadEnrollTargets(){
+  try{
+    const users = await (await api('/api/users')).json();
+    const students = users.filter(u=>u.role==='user');
+    e_subject.innerHTML = '<option value="">— pick a subject —</option>' +
+      students.map(u=>`<option value="${u.id}">${label(u)} — ${u.full_name||''}${u.enrolled?' (enrolled)':''}</option>`).join('');
+  }catch(e){}
+}
+function setTMode(mode){
+  t_id_wrap.classList.toggle('hidden', mode!=='id');
+  t_photo_wrap.classList.toggle('hidden', mode!=='photo');
+}
+
 const captured = [];
 let stream;
 async function startCam(){
   try{ stream = await navigator.mediaDevices.getUserMedia({video:true}); cam.classList.remove('hidden'); cam.srcObject = stream; }
   catch(e){ toast('Camera unavailable: '+e.message, 'err'); }
 }
-function snap(){
-  if(!stream){ toast('Start the webcam first', 'err'); return; }
-  canvas.getContext('2d').drawImage(cam, 0, 0, canvas.width, canvas.height);
-  canvas.toBlob(b => { captured.push(b); cam_count.textContent = captured.length + ' captured'; }, 'image/jpeg', 0.95);
+async function autoCapture(){
+  if(!stream){ toast('Start the camera first', 'err'); return; }
+  captured.length = 0;
+  const ctx = canvas.getContext('2d');
+  for(let i=0;i<5;i++){
+    ctx.drawImage(cam, 0, 0, canvas.width, canvas.height);
+    await new Promise(r=>canvas.toBlob(b=>{ captured.push(b); cam_count.textContent = captured.length + ' captured'; r(); }, 'image/jpeg', 0.95));
+    await new Promise(r=>setTimeout(r, 400));
+  }
+  toast(`Captured ${captured.length} webcam frames ✓`, 'ok');
 }
 
-// ───── enroll (self for user; chosen subject for authority) ─────
 async function enroll(){
-  const targetId = isAuthority ? parseInt(e_uid_in.value, 10) : S.user_id;
-  if(isAuthority && !targetId){ toast('Enter the subject user ID', 'err'); return; }
+  const targetId = isAuthority ? parseInt(e_subject.value, 10) : S.user_id;
+  if(isAuthority && !targetId){ toast('Pick a subject to enroll', 'err'); return; }
   const fd = new FormData();
   for(const f of e_files.files) fd.append('files', f);
   captured.forEach((b,i)=>fd.append('files', b, `cam_${i}.jpg`));
-  if(!e_files.files.length && !captured.length){ toast('Add at least one photo or capture', 'err'); return; }
+  if(!e_files.files.length && !captured.length){ toast('Add a photo or capture from webcam', 'err'); return; }
   e_out.textContent = 'Enrolling…';
-  const res = await api(`/api/users/${targetId}/enroll?force=${e_force.checked}`, {method:'POST', body:fd});
+  const res = await api(`/api/users/${targetId}/enroll`, {method:'POST', body:fd});
   const j = await res.json();
   if(res.ok){
     e_out.innerHTML = `<span class="ok">Enrolled ${j.username}: accepted ${j.n_accepted}/${j.n_total}, quality ${j.quality}</span>`;
+    captured.length = 0; cam_count.textContent = '0 captured';
     if(!isAuthority) setEnrolled(true);
     toast('Face enrolled ✓', 'ok');
   } else {
@@ -409,18 +604,28 @@ async function enroll(){
   }
 }
 
-// ───── identify (authority only) ─────
 async function identify(){
+  const mode = document.querySelector('input[name=tmode]:checked').value;
   if(!v_file.files[0]){ toast('Choose a video', 'err'); return; }
-  toast('⬆ Upload started — processing on the server…');
-  window._t0 = performance.now();
   const fd = new FormData();
   fd.append('file', v_file.files[0]);
   fd.append('stride', v_stride.value);
+  fd.append('camera', (v_camera.value||'main-gate').trim());
+  if(v_start.value) fd.append('window_start', v_start.value);
+  if(v_end.value) fd.append('window_end', v_end.value);
+  if(mode === 'id'){
+    if(!t_subject.value){ toast('Pick an enrolled subject', 'err'); return; }
+    fd.append('target_user_id', t_subject.value);
+  } else {
+    if(!t_photo.files[0]){ toast('Choose a target photo', 'err'); return; }
+    fd.append('target_file', t_photo.files[0]);
+  }
+  window._winStart = v_start.value ? new Date(v_start.value) : null;
+  toast('⬆ Upload started — processing on the server…');
+  window._t0 = performance.now();
   const res = await api('/api/identify', {method:'POST', body:fd});
   const j = await res.json();
-  if(!res.ok){ v_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`; toast('Upload failed', 'err'); return; }
-  jobCount++; if(typeof s_jobs!=='undefined') s_jobs.textContent = jobCount;
+  if(!res.ok){ v_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`; toast('Search failed', 'err'); return; }
   v_out.textContent = `Job ${j.job_id} submitted… processing (slow on CPU).`;
   poll(j.job_id);
 }
@@ -431,24 +636,41 @@ async function poll(id){
   if(j.status === 'error'){ v_out.innerHTML = `<span class="err">error: ${j.message}</span>`; toast('Processing failed: '+j.message, 'err'); return; }
   setTimeout(()=>poll(id), 2000);
 }
+function fmtReal(base, sec){
+  if(!base) return '—';
+  return new Date(base.getTime() + sec*1000).toLocaleString();
+}
 function renderReport(j){
-  const r = j.report || {}, p = r.processing || {};
-  const total = window._t0 ? ((performance.now()-window._t0)/1000).toFixed(1) : null;
+  const r = j.report || {}, p = r.processing || {}, tg = r.target;
   toast(`✅ Done — processed in ${p.processing_seconds ?? '?'}s`, 'ok');
   let html = `<h3>Result</h3>`;
   if(p.processing_seconds !== undefined)
-    html += `<p><b>⏱ ${p.processing_seconds}s</b> for a ${p.video_seconds}s video — ${p.frames_processed} frames @ ${p.processing_fps} FPS (stride ${p.stride})${total?`; total incl. upload: ${total}s`:''}</p>`;
-  html += `<p>Known people: ${r.summary?.known_people ?? 0}, unknown alerts: ${r.summary?.unknown_alerts ?? 0}</p>`;
-  html += `<table><thead><tr><th>User</th><th>ID</th><th>Appears</th><th>First</th><th>Last</th><th>Visible(s)</th><th>Conf</th></tr></thead><tbody>`;
-  for(const x of (r.people||[])) html += `<tr><td>${x.username}</td><td>${x.user_id??''}</td><td>${x.appearances}</td><td>${x.first_seen}</td><td>${x.last_seen}</td><td>${x.total_visible_s}</td><td>${x.max_confidence}</td></tr>`;
-  for(const a of (r.unknown_alerts||[])) html += `<tr><td colspan="2" class="err">${a.alert}</td><td>${a.appearances}</td><td>${a.first_seen}</td><td>${a.last_seen}</td><td>${a.visible_s}</td><td>—</td></tr>`;
-  html += `</tbody></table>`;
+    html += `<p><b>⏱ ${p.processing_seconds}s</b> for a ${p.video_seconds}s video — ${p.frames_processed} frames @ ${p.processing_fps} FPS (stride ${p.stride}).</p>`;
+  if(tg){
+    if(tg.found){
+      html += `<p class="ok">✅ Target present — ${tg.appearances} appearance(s), max confidence ${tg.max_confidence}, total ${tg.total_visible_s}s on screen.</p>`;
+      html += `<table><thead><tr><th>#</th><th>In clip (start → end)</th><th>Real time (start → end)</th></tr></thead><tbody>`;
+      (tg.appearance_windows||[]).forEach((w,i)=>{
+        const ws = (tg.appearance_windows_s||[])[i] || [0,0];
+        html += `<tr><td>${i+1}</td><td>${w[0]} → ${w[1]}</td><td>${fmtReal(window._winStart, ws[0])} → ${fmtReal(window._winStart, ws[1])}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    } else {
+      html += `<p class="err">Target was not found in this clip.</p>`;
+    }
+  }
+  const ua = r.summary?.unknown_alerts ?? 0;
+  html += `<p>Unknown people flagged as alerts: <b>${ua}</b>${ua?` — see <a onclick="show('alerts')" style="cursor:pointer">Alerts</a>`:''}.</p>`;
   if(j.output_video) html += `<p><a href="${j.output_video}?token=${encodeURIComponent(S.token)}" download>⬇ Download annotated video (.mp4)</a> — open in <b>VLC</b> (browsers can't preview mp4v).</p>`;
   v_result.innerHTML = html;
+  refreshAlertBadge();
 }
 
-// ───── init ─────
+paintIcons();
 show(items[0].v);
+moveNavInd();
+refreshAlertBadge();
+window.addEventListener('resize', moveNavInd);
 </script>
 </body>
 </html>

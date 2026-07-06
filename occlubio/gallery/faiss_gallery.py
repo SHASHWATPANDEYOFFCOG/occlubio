@@ -1,11 +1,3 @@
-"""FAISS-backed 1:N identity gallery (cosine similarity on L2-normalized embeddings).
-
-Edge / small gallery: keep this flat IndexFlatIP (exact). For 1M-1B identities move to
-IVF-PQ or Milvus-GPU and add an exact re-rank on the top-k (architecture §1.11).
-
-HOOK: store *protected* templates here, not raw embeddings (architecture §1.12). The
-add/search API is unchanged if you transform embeddings before insertion + query.
-"""
 from __future__ import annotations
 
 import json
@@ -21,15 +13,14 @@ log = get_logger(__name__)
 
 class FaissGallery:
     def __init__(self, dim: int = 512):
-        import faiss  # lazy
+        import faiss
 
         self._faiss = faiss
         self.dim = dim
-        self.index = faiss.IndexFlatIP(dim)   # inner product == cosine on normalized vecs
+        self.index = faiss.IndexFlatIP(dim)
         self.labels: List[str] = []
         self.meta: List[dict] = []
 
-    # ---- mutation ----------------------------------------------------------
     def add(self, embedding: np.ndarray, label: str, meta: Optional[dict] = None) -> None:
         emb = l2_normalize(embedding).astype(np.float32).reshape(1, -1)
         if emb.shape[1] != self.dim:
@@ -44,7 +35,6 @@ class FaissGallery:
         self.labels.extend(labels)
         self.meta.extend(metas or [{} for _ in labels])
 
-    # ---- query -------------------------------------------------------------
     def search(self, embedding: np.ndarray, top_k: int = 5) -> List[Tuple[str, float, dict]]:
         if self.index.ntotal == 0:
             return []
@@ -65,7 +55,6 @@ class FaissGallery:
         label, score, _ = hits[0]
         return (label, score) if score >= threshold else ("unknown", score)
 
-    # ---- persistence -------------------------------------------------------
     def save(self, path: str | Path) -> None:
         path = ensure_dir(path)
         self._faiss.write_index(self.index, str(path / "index.faiss"))

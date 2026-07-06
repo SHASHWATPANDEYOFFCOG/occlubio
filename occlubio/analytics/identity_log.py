@@ -1,13 +1,3 @@
-"""Video identity analytics: turn per-frame recognition results into a person-level report.
-
-Two consolidation steps keep the report clean (no fragmented-track noise):
-  - KNOWN people: tracks are grouped by identity, and time windows separated by less than
-    `merge_gap_s` are merged so "appearances" = real on-screen segments, not track IDs.
-  - UNKNOWN people: short blips are dropped, and remaining unknown tracks are clustered by
-    face-embedding similarity, so the same un-enrolled person isn't reported 100+ times.
-
-Produces: person id, confidence, first/last-seen timestamp, appearances, unknown-person alerts.
-"""
 from __future__ import annotations
 
 import json
@@ -129,9 +119,9 @@ class IdentityLog:
                 "max_confidence": round(max(r.best_score for r in recs), 3),
                 "avg_confidence": round(sum(r.avg_score for r in recs) / len(recs), 3),
                 "appearance_windows": [[_ts(a), _ts(b)] for a, b in windows],
+                "appearance_windows_s": [[round(a, 2), round(b, 2)] for a, b in windows],
             })
 
-        # drop unknown blips, then cluster the rest into distinct unknown people
         unknown_tracks = [r for r in unknown_tracks if r.duration >= self.unknown_min_seconds]
         clusters = self._cluster_unknowns(unknown_tracks)
         alerts = []
@@ -142,6 +132,8 @@ class IdentityLog:
                 "appearances": len(windows),
                 "first_seen": _ts(min(w[0] for w in windows)),
                 "last_seen": _ts(max(w[1] for w in windows)),
+                "first_seen_s": round(min(w[0] for w in windows), 2),
+                "last_seen_s": round(max(w[1] for w in windows), 2),
                 "visible_s": round(sum(b - a for a, b in windows), 2),
             })
 
@@ -149,6 +141,31 @@ class IdentityLog:
             "summary": {"known_people": len(people), "unknown_alerts": len(alerts)},
             "people": people,
             "unknown_alerts": alerts,
+        }
+
+    def target_report(self, target_emb: np.ndarray, threshold: float,
+                      label: str = "target") -> dict:
+        target = _unit(np.asarray(target_emb, dtype=np.float32))
+        hits: list[tuple[float, float, float]] = []
+        best_sim = 0.0
+        for r in self.tracks.values():
+            if r.n_frames < self.min_track_frames or r.best_emb is None:
+                continue
+            sim = float(np.dot(_unit(r.best_emb), target))
+            if sim >= threshold:
+                hits.append((r.first_t, r.last_t, sim))
+                best_sim = max(best_sim, sim)
+        windows = _merge_windows([(a, b) for a, b, _ in hits], self.merge_gap_s)
+        return {
+            "label": label,
+            "found": bool(windows),
+            "appearances": len(windows),
+            "max_confidence": round(best_sim, 3),
+            "first_seen": _ts(min(w[0] for w in windows)) if windows else None,
+            "last_seen": _ts(max(w[1] for w in windows)) if windows else None,
+            "total_visible_s": round(sum(b - a for a, b in windows), 2),
+            "appearance_windows": [[_ts(a), _ts(b)] for a, b in windows],
+            "appearance_windows_s": [[round(a, 2), round(b, 2)] for a, b in windows],
         }
 
     def save(self, path: str | Path) -> dict:

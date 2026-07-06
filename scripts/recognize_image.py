@@ -1,4 +1,3 @@
-"""Run 1:N recognition on a single image and (optionally) save an annotated copy."""
 from __future__ import annotations
 
 import argparse

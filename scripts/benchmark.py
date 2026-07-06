@@ -1,7 +1,3 @@
-"""Latency/throughput benchmark on YOUR hardware (always measure on target, not on the trainer).
-
-Reports per-frame p50/p95/p99 and FPS for the full pipeline.
-"""
 from __future__ import annotations
 
 import argparse

@@ -1,6 +1,3 @@
-"""SQLite for the MVP (zero-config). Switch to Postgres for production by setting
-OCCLUBIO_DB=postgresql+psycopg://user:pass@host/db — no other code changes needed.
-"""
 from __future__ import annotations
 
 import os
@@ -17,16 +14,22 @@ engine = create_engine(DB_URL, connect_args=_connect_args, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 
-def _migrate() -> None:
-    """Tiny additive migration: add columns introduced after the first release.
-    (A real deployment would use Alembic — see PLATFORM.md.)"""
+def _add_column(table: str, name: str, ddl: str) -> None:
     insp = inspect(engine)
-    if "users" not in insp.get_table_names():
+    if table not in insp.get_table_names():
         return
-    cols = {c["name"] for c in insp.get_columns("users")}
-    if "role" not in cols:
+    cols = {c["name"] for c in insp.get_columns(table)}
+    if name not in cols:
         with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(16) DEFAULT 'user'"))
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+
+
+def _migrate() -> None:
+    _add_column("users", "role", "role VARCHAR(16) DEFAULT 'user'")
+    _add_column("users", "full_name", "full_name VARCHAR(128) DEFAULT ''")
+    _add_column("users", "roll_number", "roll_number VARCHAR(64)")
+    _add_column("jobs", "window_end", "window_end DATETIME")
+    _add_column("sightings", "appearances", "appearances INTEGER DEFAULT 1")
 
 
 def init_db() -> None:
@@ -35,7 +38,6 @@ def init_db() -> None:
 
 
 def get_db():
-    """FastAPI dependency: yields a session and always closes it."""
     db = SessionLocal()
     try:
         yield db

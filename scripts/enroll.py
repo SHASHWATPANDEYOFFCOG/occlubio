@@ -1,11 +1,3 @@
-"""Enrollment (registration) phase.
-
-Register people from one or more face images, with FACE QUALITY ASSESSMENT so only clear,
-valid samples are stored. Multiple accepted images per person are averaged into one robust
-template (set-based enrollment), then written to the searchable FAISS gallery.
-
-Layout:  data/enroll/<person_name>/*.jpg   (one folder per identity, 1+ images each)
-"""
 from __future__ import annotations
 
 import argparse
@@ -41,7 +33,6 @@ def main():
     engine = RecognitionEngine(cfg, gallery=FaissGallery.load_or_new(gallery_path, cfg.recognition.embedding_dim))
 
     root = Path(args.images)
-    # per person -> list of (embedding, quality, passed)
     per_person = defaultdict(list)
     for person_dir in sorted(p for p in root.iterdir() if p.is_dir()):
         for img_path in person_dir.iterdir():

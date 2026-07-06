@@ -1,9 +1,3 @@
-"""Real-time 1:N recognition over webcam / RTSP / video file.
-
-  --source 0                          webcam
-  --source rtsp://user:pass@ip/stream IP camera
-  --source clip.mp4                   file
-"""
 from __future__ import annotations
 
 import argparse
@@ -58,7 +52,7 @@ def main():
         if not ok:
             break
         frame_no += 1
-        if frame_no % max(1, args.stride) != 0:   # skip frames for CPU speedup
+        if frame_no % max(1, args.stride) != 0:
             continue
         t = time.time()
         results = engine.process_frame(frame)

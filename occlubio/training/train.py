@@ -1,14 +1,3 @@
-"""Train an edge, occlusion-aware face embedder (AdaFace head + timm backbone).
-
-This is a runnable *starting skeleton* — not a full WebFace12M recipe. It gives you the right
-structure (embedding net -> norm split -> AdaFace -> CE) with occlusion augmentation baked in,
-and exports ONNX that plugs straight into inference via `recognition.custom_onnx`.
-
-For SOTA, swap the backbone for IResNet-100 / MobileFaceNet / EdgeFace and add teacher-student
-distillation (architecture §3). Run:
-
-    python -m occlubio.training.train --data /path/to/aligned_faces --epochs 20 --out runs/edge
-"""
 from __future__ import annotations
 
 import argparse
@@ -27,7 +16,6 @@ log = get_logger("train")
 
 
 class EmbeddingNet(nn.Module):
-    """timm backbone -> 512-d embedding head. Returns (normalized_embedding, feature_norm)."""
 
     def __init__(self, backbone: str = "mobilenetv3_small_100", embedding_dim: int = 512):
         super().__init__()

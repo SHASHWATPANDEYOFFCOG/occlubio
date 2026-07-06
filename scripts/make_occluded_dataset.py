@@ -1,8 +1,3 @@
-"""Generate a synthetically-occluded copy of a face dataset (for training/eval).
-
-Aligns each image (if landmarks are found) then applies occlusion + photometric augmentation.
-Preserves the root/<identity>/<img> structure so it drops into training/eval directly.
-"""
 from __future__ import annotations
 
 import argparse

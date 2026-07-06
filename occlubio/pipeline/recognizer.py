@@ -1,8 +1,3 @@
-"""Custom occlusion-aware recognizer (your trained model, exported to ONNX).
-
-Used when `recognition.custom_onnx` is set. Preprocessing here MUST match training
-(see occlubio/training/): BGR aligned 112x112, scaled by (x-127.5)/128, NCHW.
-"""
 from __future__ import annotations
 
 from typing import List, Optional
@@ -30,7 +25,7 @@ class CustomRecognizer:
             aligned_crop = cv2.resize(aligned_crop, (self.image_size, self.image_size))
         x = aligned_crop.astype(np.float32)
         x = (x - 127.5) / 128.0
-        x = np.transpose(x, (2, 0, 1))[None]  # NCHW
+        x = np.transpose(x, (2, 0, 1))[None]
         return x
 
     def embed(self, aligned_crop: np.ndarray) -> np.ndarray:

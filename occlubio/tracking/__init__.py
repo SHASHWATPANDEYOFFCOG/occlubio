@@ -1,1 +1,1 @@
-from occlubio.tracking.tracker import IoUTracker  # noqa: F401
+from occlubio.tracking.tracker import IoUTracker

@@ -5,80 +5,184 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>occlubio — Sign in</title>
 <style>
-  :root{ --bg:#0b1020; --panel:#121a30; --panel2:#0e1528; --line:#243154;
-    --txt:#e8edf7; --muted:#93a0bd; --brand:#3b82f6; --brand2:#2563eb; --ok:#22c55e; --err:#ef4444; }
-  *{box-sizing:border-box}
-  body{ margin:0; min-height:100vh; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    color:var(--txt);
-    background:
-      radial-gradient(1200px 600px at 15% -10%, #1b2750 0%, transparent 60%),
-      radial-gradient(1000px 500px at 110% 110%, #16204a 0%, transparent 55%), var(--bg);
-    display:flex; align-items:center; justify-content:center; padding:24px; }
-  .card{ width:100%; max-width:440px; background:linear-gradient(180deg,var(--panel),var(--panel2));
-    border:1px solid var(--line); border-radius:16px; padding:30px 28px; box-shadow:0 20px 60px rgba(0,0,0,.45); }
-  .brand{display:flex; align-items:center; gap:10px; margin-bottom:6px}
-  .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--brand),#7c3aed);
-    display:grid;place-items:center;font-weight:800;font-size:20px;color:#fff}
-  h1{font-size:1.45rem; margin:0}
-  .sub{color:var(--muted); margin:4px 0 22px; font-size:.9rem}
-  .tabs{display:flex; gap:6px; background:#0c1426; padding:5px; border-radius:10px; margin-bottom:18px}
-  .tab{flex:1; text-align:center; padding:9px; border-radius:7px; cursor:pointer; color:var(--muted); font-weight:600; font-size:.9rem}
-  .tab.active{background:var(--brand); color:#fff}
-  label{display:block; font-size:.8rem; color:var(--muted); margin:12px 0 5px}
-  input,select{width:100%; padding:11px 12px; border-radius:9px; border:1px solid var(--line);
-    background:#0c1426; color:var(--txt); font-size:.95rem}
-  input:focus,select:focus{outline:none; border-color:var(--brand)}
-  .roles{display:flex; gap:8px}
-  .role{flex:1; border:1px solid var(--line); border-radius:9px; padding:11px; text-align:center; cursor:pointer; font-size:.85rem; font-weight:600; color:var(--muted)}
-  .role.active{border-color:var(--brand); background:rgba(59,130,246,.12); color:var(--txt)}
-  .role small{display:block; font-weight:400; font-size:.72rem; margin-top:2px}
-  button{width:100%; margin-top:20px; padding:12px; border:none; border-radius:9px; cursor:pointer;
-    background:linear-gradient(135deg,var(--brand),var(--brand2)); color:#fff; font-weight:700; font-size:.95rem}
-  button:hover{opacity:.93}
-  .msg{margin-top:14px; font-size:.85rem; min-height:18px}
-  .ok{color:var(--ok)} .err{color:var(--err)}
-  .foot{margin-top:18px; text-align:center; color:var(--muted); font-size:.75rem}
-  .hidden{display:none}
+
+:root{
+  --bg:#080b14; --bg-2:#0b1020;
+  --surface:#111a30; --surface-2:#0e1528;
+  --glass:rgba(18,26,48,.55); --glass-brd:rgba(124,148,214,.16);
+  --line:#223052; --line-2:#2c3d66;
+
+  --txt:#eaf0fb; --muted:#9aa8c7; --faint:#66739a;
+
+  --brand:#3b82f6; --brand-2:#6366f1; --violet:#8b5cf6; --cyan:#22d3ee;
+
+  --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+
+  --grad-brand:linear-gradient(135deg,var(--brand),var(--violet));
+  --grad-text:linear-gradient(100deg,#8ec7ff,#a78bfa 52%,#39d9ee);
+  --glow-brand:0 10px 40px -8px rgba(59,130,246,.55);
+
+  --font-body:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"Cascadia Code","JetBrains Mono","SF Mono",Consolas,monospace;
+  --fs-display:clamp(1.7rem,4.5vw,2.1rem); --fs-body:.95rem; --fs-cap:.75rem;
+
+  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem; --space-5:1.5rem; --space-6:2rem; --space-8:3rem;
+
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-full:999px;
+
+  --e1:0 1px 2px rgba(0,0,0,.3); --e2:0 6px 20px rgba(0,0,0,.35);
+  --e3:0 18px 50px rgba(0,0,0,.5); --e4:0 34px 80px rgba(2,6,20,.65);
+
+  --dur-1:150ms; --dur-2:240ms; --dur-3:360ms; --dur-4:480ms;
+  --ease-out:cubic-bezier(.16,1,.3,1); --ease-io:cubic-bezier(.65,0,.35,1); --spring:cubic-bezier(.22,1.4,.36,1);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{ margin:0; min-height:100vh; font-family:var(--font-body); color:var(--txt);
+  background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px;
+  overflow-x:hidden; overflow-y:auto; }
+
+#fx{position:fixed; inset:0; width:100%; height:100%; z-index:0; opacity:.9}
+.aurora{position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none}
+.blob{position:absolute; border-radius:50%; filter:blur(70px); opacity:.55; will-change:transform}
+.blob.b1{width:46vw; height:46vw; left:-8vw; top:-12vw; background:radial-gradient(circle at 30% 30%,#2b62d6,transparent 60%); animation:drift1 22s var(--ease-io) infinite alternate}
+.blob.b2{width:40vw; height:40vw; right:-10vw; top:10vh; background:radial-gradient(circle at 60% 40%,#7c3aed,transparent 60%); animation:drift2 26s var(--ease-io) infinite alternate}
+.blob.b3{width:34vw; height:34vw; left:20vw; bottom:-14vw; background:radial-gradient(circle at 50% 50%,#0e7490,transparent 60%); animation:drift3 30s var(--ease-io) infinite alternate}
+@keyframes drift1{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(6vw,4vh,0) scale(1.15)}}
+@keyframes drift2{from{transform:translate3d(0,0,0) scale(1.05)}to{transform:translate3d(-5vw,6vh,0) scale(.9)}}
+@keyframes drift3{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(4vw,-5vh,0) scale(1.2)}}
+.grain{position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+.vignette{position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(3,6,16,.7) 100%)}
+
+.card{ position:relative; z-index:2; width:100%; max-width:430px; padding:32px 30px;
+  border-radius:var(--r-xl); border:1px solid var(--glass-brd);
+  background:linear-gradient(180deg,rgba(20,29,54,.72),rgba(11,16,32,.72));
+  backdrop-filter:blur(22px) saturate(140%); -webkit-backdrop-filter:blur(22px) saturate(140%);
+  box-shadow:var(--e4), inset 0 1px 0 rgba(255,255,255,.06);
+  animation:cardIn .7s var(--spring) both; }
+.card::before{ content:""; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none;
+  background:linear-gradient(140deg,rgba(124,160,255,.5),transparent 40%,transparent 60%,rgba(139,92,246,.4));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude; }
+@keyframes cardIn{from{opacity:0; transform:translateY(18px) scale(.98)}to{opacity:1; transform:none}}
+
+.brand{display:flex; align-items:center; gap:11px; margin-bottom:6px}
+.logo{position:relative; width:40px;height:40px;border-radius:11px;background:var(--grad-brand);
+  display:grid;place-items:center;font-weight:800;font-size:20px;color:#fff; box-shadow:var(--glow-brand)}
+.logo::after{content:""; position:absolute; inset:0; border-radius:inherit; box-shadow:0 0 0 6px rgba(99,102,241,.14);
+  animation:pulseRing 3s var(--ease-io) infinite}
+@keyframes pulseRing{0%,100%{box-shadow:0 0 0 5px rgba(99,102,241,.16)}50%{box-shadow:0 0 0 10px rgba(99,102,241,0)}}
+h1{font-size:1.5rem; margin:0; letter-spacing:-.02em;
+  background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent;
+  background-size:200% auto; animation:sheen 6s linear infinite}
+@keyframes sheen{to{background-position:200% center}}
+.sub{color:var(--muted); margin:4px 0 22px; font-size:.9rem}
+.eyebrow{font-family:var(--font-mono); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--faint)}
+
+.tabs{position:relative; display:flex; gap:6px; background:rgba(6,10,22,.6); padding:5px; border-radius:var(--r-md);
+  margin-bottom:18px; border:1px solid var(--line)}
+.tab-ind{position:absolute; top:5px; bottom:5px; left:5px; width:calc(50% - 7px); border-radius:9px;
+  background:var(--grad-brand); box-shadow:var(--glow-brand); z-index:0;
+  transition:transform var(--dur-3) var(--spring)}
+.tabs:has(#tab_reg.active) .tab-ind{transform:translateX(calc(100% + 4px))}
+.tab{position:relative; z-index:1; flex:1; text-align:center; padding:9px; border-radius:7px; cursor:pointer;
+  color:var(--muted); font-weight:600; font-size:.9rem; transition:color var(--dur-2) var(--ease-out)}
+.tab.active{color:#fff}
+label{display:block; font-size:.8rem; color:var(--muted); margin:12px 0 5px}
+input,select{width:100%; padding:11px 12px; border-radius:var(--r-sm); border:1px solid var(--line);
+  background:rgba(8,12,26,.7); color:var(--txt); font-size:.95rem; font-family:inherit;
+  transition:border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), background var(--dur-2)}
+input::placeholder{color:var(--faint)}
+input:focus,select:focus{outline:none; border-color:var(--brand); background:rgba(8,12,26,.95);
+  box-shadow:0 0 0 3px rgba(59,130,246,.22)}
+.roles{display:flex; gap:8px}
+.role{flex:1; border:1px solid var(--line); border-radius:var(--r-sm); padding:11px; text-align:center; cursor:pointer;
+  font-size:.85rem; font-weight:600; color:var(--muted); background:rgba(8,12,26,.4);
+  transition:border-color var(--dur-2) var(--ease-out), background var(--dur-2), transform var(--dur-2) var(--spring), box-shadow var(--dur-2)}
+.role:hover{transform:translateY(-1px); border-color:var(--line-2)}
+.role.active{border-color:var(--brand); background:rgba(59,130,246,.14); color:var(--txt); box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.role small{display:block; font-weight:400; font-size:.72rem; margin-top:2px}
+button{width:100%; margin-top:20px; padding:12px; border:none; border-radius:var(--r-sm); cursor:pointer;
+  background:var(--grad-brand); color:#fff; font-weight:700; font-size:.95rem; position:relative; overflow:hidden;
+  box-shadow:var(--glow-brand); transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2) var(--ease-out), filter var(--dur-2)}
+button::after{content:""; position:absolute; top:0; left:-120%; width:60%; height:100%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.28),transparent); transform:skewX(-18deg)}
+button:hover{transform:translateY(-2px); box-shadow:0 16px 46px -10px rgba(99,102,241,.7); filter:saturate(1.08)}
+button:hover::after{animation:swipe .8s var(--ease-out)}
+button:active{transform:translateY(0) scale(.99)}
+button:focus-visible{outline:none; box-shadow:0 0 0 3px rgba(255,255,255,.5), var(--glow-brand)}
+@keyframes swipe{to{left:130%}}
+.msg{margin-top:14px; font-size:.85rem; min-height:18px}
+.ok{color:var(--ok)} .err{color:var(--err)}
+.foot{margin-top:18px; text-align:center; color:var(--faint); font-size:.75rem; display:flex; align-items:center; justify-content:center; gap:7px}
+.foot .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:blink 2.4s var(--ease-io) infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.hidden{display:none}
+form{animation:formIn .4s var(--ease-out) both}
+@keyframes formIn{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
+  .blob{animation:none}
+}
 </style>
 </head>
 <body>
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div class="aurora" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
   <div class="card">
     <div class="brand">
       <div class="logo">o</div>
       <div><h1>occlubio</h1><div class="sub" style="margin:0">Occlusion-robust face recognition</div></div>
     </div>
-    <p class="sub">Sign in to the surveillance &amp; identification console.</p>
+    <p class="eyebrow">Surveillance &amp; identification console</p>
+    <p class="sub" style="margin-top:6px">Sign in to continue.</p>
 
     <div class="tabs">
+      <span class="tab-ind" aria-hidden="true"></span>
       <div class="tab active" id="tab_login" onclick="switchTab('login')">Sign in</div>
       <div class="tab" id="tab_reg" onclick="switchTab('reg')">Create account</div>
     </div>
 
-    <!-- LOGIN -->
     <form id="form_login" onsubmit="doLogin(event)">
-      <label>Username</label>
-      <input id="l_user" autocomplete="username" placeholder="username" required />
+      <label>Roll number or username</label>
+      <input id="l_user" autocomplete="username" placeholder="roll number / username" required />
       <label>Password</label>
       <input id="l_pass" type="password" autocomplete="current-password" placeholder="••••••••" required />
       <button type="submit">Sign in</button>
       <div class="msg" id="l_msg"></div>
     </form>
 
-    <!-- REGISTER -->
     <form id="form_reg" class="hidden" onsubmit="doRegister(event)">
       <label>Account type</label>
       <div class="roles">
         <div class="role active" id="role_user" onclick="pickRole('user')">
-          User<small>enroll your own face</small></div>
+          Student<small>enroll your own face</small></div>
         <div class="role" id="role_auth" onclick="pickRole('authority')">
           Authority<small>operate surveillance</small></div>
       </div>
-      <label>Username</label>
-      <input id="r_user" placeholder="username" required />
+
+      <div id="roll_wrap">
+        <label>Roll number</label>
+        <input id="r_roll" placeholder="e.g. 21075001" />
+      </div>
+      <div id="user_wrap" class="hidden">
+        <label>Username</label>
+        <input id="r_user" placeholder="unique username" />
+      </div>
+
+      <label>Full name</label>
+      <input id="r_name" placeholder="your full name" required />
       <label>Email</label>
       <input id="r_email" type="email" placeholder="you@example.com" required />
       <label>Password</label>
       <input id="r_pass" type="password" placeholder="choose a password" required />
+
       <div id="auth_code_wrap" class="hidden">
         <label>Authority access code</label>
         <input id="r_code" placeholder="operator access code" />
@@ -87,7 +191,7 @@
       <div class="msg" id="r_msg"></div>
     </form>
 
-    <div class="foot">Biometric system — authorized use only.</div>
+    <div class="foot"><span class="dot"></span> Biometric system — authorized use only.</div>
   </div>
 
 <script>
@@ -98,6 +202,8 @@ function pickRole(r){
   regRole = r;
   role_user.classList.toggle('active', r === 'user');
   role_auth.classList.toggle('active', r === 'authority');
+  roll_wrap.classList.toggle('hidden', r !== 'user');
+  user_wrap.classList.toggle('hidden', r !== 'authority');
   auth_code_wrap.classList.toggle('hidden', r !== 'authority');
 }
 function switchTab(which){
@@ -109,7 +215,8 @@ function switchTab(which){
 }
 function save(j){
   localStorage.setItem('occlubio_session', JSON.stringify({
-    token:j.token, user_id:j.user_id, username:j.username, role:j.role, enrolled:j.enrolled
+    token:j.token, user_id:j.user_id, username:j.username, full_name:j.full_name,
+    roll_number:j.roll_number, role:j.role, enrolled:j.enrolled
   }));
 }
 
@@ -117,7 +224,7 @@ async function doLogin(e){
   e.preventDefault();
   l_msg.textContent = 'Signing in…'; l_msg.className = 'msg';
   const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ username:l_user.value, password:l_pass.value }) });
+    body: JSON.stringify({ username:l_user.value.trim(), password:l_pass.value }) });
   const j = await res.json();
   if(res.ok){ save(j); l_msg.innerHTML = '<span class="ok">Welcome back — redirecting…</span>'; location.replace('/'); }
   else l_msg.innerHTML = `<span class="err">${j.detail || 'Invalid credentials'}</span>`;
@@ -126,14 +233,58 @@ async function doLogin(e){
 async function doRegister(e){
   e.preventDefault();
   r_msg.textContent = 'Creating account…'; r_msg.className = 'msg';
-  const body = { username:r_user.value, email:r_email.value, password:r_pass.value, role:regRole };
-  if(regRole === 'authority') body.authority_code = r_code.value;
+  const body = { role:regRole, full_name:r_name.value.trim(), email:r_email.value.trim(), password:r_pass.value };
+  if(regRole === 'authority'){ body.username = r_user.value.trim(); body.authority_code = r_code.value; }
+  else { body.roll_number = r_roll.value.trim(); }
   const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body) });
   const j = await res.json();
   if(res.ok){ save(j); r_msg.innerHTML = '<span class="ok">Account created — redirecting…</span>'; location.replace('/'); }
   else r_msg.innerHTML = `<span class="err">${j.detail || JSON.stringify(j)}</span>`;
 }
+
+(function(){
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const small = matchMedia('(max-width: 640px)').matches;
+  const cv = document.getElementById('fx'); if(!cv) return;
+  const ctx = cv.getContext('2d', { alpha:true });
+  let w,h,dpr,pts,raf,running=false;
+  function size(){
+    dpr = Math.min(window.devicePixelRatio||1, 2);
+    w = cv.clientWidth; h = cv.clientHeight;
+    cv.width = w*dpr; cv.height = h*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function seed(){
+    const n = small ? 34 : 74;
+    pts = Array.from({length:n}, ()=>({ x:Math.random()*w, y:Math.random()*h,
+      vx:(Math.random()-.5)*0.22, vy:(Math.random()-.5)*0.22, r:Math.random()*1.6+0.6 }));
+  }
+  function frame(){
+    ctx.clearRect(0,0,w,h);
+    for(const p of pts){
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0||p.x>w) p.vx*=-1; if(p.y<0||p.y>h) p.vy*=-1;
+    }
+    for(let i=0;i<pts.length;i++){
+      for(let j=i+1;j<pts.length;j++){
+        const a=pts[i], b=pts[j], dx=a.x-b.x, dy=a.y-b.y, d=Math.hypot(dx,dy);
+        if(d<120){ ctx.strokeStyle='rgba(120,150,240,'+(0.14*(1-d/120))+')'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+      }
+    }
+    for(const p of pts){ ctx.fillStyle='rgba(150,180,255,.7)';
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.283); ctx.fill(); }
+    raf = requestAnimationFrame(frame);
+  }
+  function start(){ if(running) return; running=true; frame(); }
+  function stop(){ running=false; cancelAnimationFrame(raf); }
+  size(); seed();
+  if(reduce){ frame(); cancelAnimationFrame(raf); }
+  else{ start();
+    document.addEventListener('visibilitychange', ()=> document.hidden ? stop() : start());
+    let t; window.addEventListener('resize', ()=>{ clearTimeout(t); t=setTimeout(()=>{ size(); seed(); },200); });
+  }
+})();
 </script>
 </body>
 </html>

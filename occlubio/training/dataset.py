@@ -1,11 +1,3 @@
-"""Aligned-face dataset with on-the-fly occlusion augmentation.
-
-Expects an ImageFolder layout of *aligned* 112x112 crops:
-    root/<identity_id>/<image>.jpg
-
-(Most FR training sets — MS1MV3, WebFace4M — ship pre-aligned. If yours are not aligned,
-run them through occlubio.pipeline.aligner.norm_crop first.)
-"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -58,10 +50,10 @@ class AlignedFaceDataset(Dataset):
         if self.train:
             if self.augmentor is not None:
                 img = self.augmentor(img)
-            if np.random.rand() < 0.5:        # horizontal flip
+            if np.random.rand() < 0.5:
                 img = img[:, ::-1]
 
         x = img.astype(np.float32)
-        x = (x - 127.5) / 128.0               # MUST match inference preprocessing
+        x = (x - 127.5) / 128.0
         x = np.ascontiguousarray(np.transpose(x, (2, 0, 1)))
         return torch.from_numpy(x), label

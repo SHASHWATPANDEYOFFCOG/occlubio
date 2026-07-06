@@ -43,7 +43,7 @@ def test_tracker_assigns_stable_ids():
 
 
 def test_faiss_gallery_roundtrip(tmp_path):
-    faiss = pytest.importorskip("faiss")
+    pytest.importorskip("faiss")
     from occlubio.gallery import FaissGallery
 
     g = FaissGallery(dim=8)

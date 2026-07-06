@@ -251,7 +251,140 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
           <label class="muted">Subject <select id="t_subject" style="min-width:260px"><option value="">—</option></select></label>
         </div>
         <div class="row hidden" id="t_photo_wrap" style="margin-top:8px">
-          <label class="muted">Target photo <input type="file" id="t_photo" accept="image
+          <label class="muted">Target photo <input type="file" id="t_photo" accept="image/*" /></label>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label class="muted">Video clip <input type="file" id="v_file" accept="video/*" /></label>
+          <label class="muted">stride <input id="v_stride" type="number" value="2" min="1" style="width:64px" /></label>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label class="muted">camera <input id="v_camera" type="text" value="main-gate" style="width:130px" /></label>
+          <label class="muted">clip starts <input id="v_start" type="datetime-local" style="width:210px" /></label>
+          <label class="muted">clip ends <input id="v_end" type="datetime-local" style="width:210px" /></label>
+        </div>
+        <div class="row" style="margin-top:12px"><button onclick="identify()">Search clip</button></div>
+        <pre id="v_out">No search submitted.</pre>
+        <div id="v_result"></div>
+      </div>
+    </section>
+
+    <section data-view="users" class="hidden">
+      <div class="card">
+        <h2>Registered subjects</h2>
+        <p class="hint">Everyone on the platform and whether they have a face template in the gallery. Open <b>Activity</b> to see the days a subject crossed the camera.</p>
+        <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadUsers()"><span class="ico" data-ico="refresh"></span> Refresh</button></div>
+        <table><thead><tr><th>ID</th><th>Roll / Username</th><th>Name</th><th>Email</th><th>Role</th><th>Enrolled</th><th></th></tr></thead>
+          <tbody id="users_body"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section data-view="activity" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h2 id="act_title">Gate activity</h2>
+          <button class="ghost" onclick="show('users')">← Back to subjects</button>
+        </div>
+        <p class="hint">One row per day: the first time this subject entered the camera view and the last time they left it. Timestamps use each clip's recorded time.</p>
+        <div class="grid">
+          <div class="stat"><div class="k">Days seen</div><div class="v" id="act_total">–</div></div>
+          <div class="stat"><div class="k">First seen</div><div class="v" id="act_first" style="font-size:1rem">–</div></div>
+          <div class="stat"><div class="k">Last seen</div><div class="v" id="act_last" style="font-size:1rem">–</div></div>
+          <div class="stat"><div class="k">Total span</div><div class="v" id="act_visible">–</div></div>
+        </div>
+        <div class="row" style="margin-bottom:12px"><span id="act_cams" class="muted"></span></div>
+        <table><thead><tr><th>Date</th><th>Camera</th><th>First in</th><th>Last out</th><th>Times</th><th>Span</th><th>Conf</th></tr></thead>
+          <tbody id="act_body"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <section data-view="alerts" class="hidden">
+      <div class="card">
+        <h2>Unknown-person alerts</h2>
+        <p class="hint">Every time an un-enrolled face entered a camera view in a processed clip, with how long they were present. Timestamps use the clip's recorded start time. Opening this page clears the badge.</p>
+        <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadAlerts()"><span class="ico" data-ico="refresh"></span> Refresh</button></div>
+        <div id="alerts_list"><p class="muted">Loading…</p></div>
+      </div>
+    </section>
+
+    <section data-view="messages" class="hidden">
+      <div class="card">
+        <h2>Pass information to participants</h2>
+        <p class="hint">Send a notice to a group of participants or broadcast to everyone. Participants see it under <b>Notices</b>.</p>
+        <div class="row" style="align-items:flex-start">
+          <label class="muted" style="align-self:center">Recipients</label>
+          <div class="checklist" id="m_recips"><span class="muted">Loading…</span></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <textarea id="m_body" rows="3" placeholder="Type the information / notice…" style="width:100%; padding:10px; font-size:.92rem"></textarea>
+        </div>
+        <div class="row" style="margin-top:10px"><button onclick="sendMessage()"><span class="ico" data-ico="send"></span> Send notice</button></div>
+        <pre id="m_out" class="hidden"></pre>
+      </div>
+      <div class="card">
+        <h2>Sent notices</h2>
+        <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadSent()"><span class="ico" data-ico="refresh"></span> Refresh</button></div>
+        <table><thead><tr><th>When</th><th>To</th><th>Message</th></tr></thead>
+          <tbody id="sent_body"><tr><td colspan="3" class="muted">Loading…</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <section data-view="notices" class="hidden">
+      <div class="card">
+        <h2>Notices from authority</h2>
+        <p class="hint">Information passed to you by surveillance operators (direct messages and broadcasts).</p>
+        <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadNotices()"><span class="ico" data-ico="refresh"></span> Refresh</button></div>
+        <div id="notices_list"><p class="muted">Loading…</p></div>
+      </div>
+    </section>
+
+    <section data-view="profile" class="hidden">
+      <div class="card">
+        <h2>My profile</h2>
+        <p class="hint">Your account on the occlubio platform.</p>
+        <div class="kv">
+          <div>Full name</div><div id="p_name">–</div>
+          <div>Roll number</div><div id="p_roll">–</div>
+          <div>Username</div><div id="p_user">–</div>
+          <div>Email</div><div id="p_email">–</div>
+          <div>Role</div><div id="p_role">–</div>
+          <div>Face enrolled</div><div id="p_enrolled">–</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>What you can do</h2>
+        <p class="hint">As a <b>student</b> you can enroll and update your own face template. Running video identification is restricted to authority operators.</p>
+        <button onclick="show('enroll')">Enroll my face</button>
+      </div>
+    </section>
+
+    <section data-view="enroll" class="hidden">
+      <div class="card">
+        <h2 id="enroll_title">Enroll my face</h2>
+        <p class="hint">Upload clear, front-facing photos and/or capture a short burst from your webcam. Quality-gated; a face already registered to someone else is rejected.</p>
+        <div id="enroll_target" class="row hidden" style="margin-bottom:6px">
+          <label class="muted">Subject <select id="e_subject" style="min-width:280px"><option value="">—</option></select></label>
+        </div>
+        <div class="row"><label class="muted">Photos <input type="file" id="e_files" accept="image/*" multiple /></label></div>
+        <div class="row" style="margin-top:10px">
+          <button class="ghost" onclick="startCam()"><span class="ico" data-ico="video"></span> Start camera</button>
+          <button class="ghost" onclick="autoCapture()"><span class="ico" data-ico="userplus"></span> Capture from webcam</button>
+          <span id="cam_count" class="muted">0 captured</span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <video id="cam" autoplay playsinline muted width="320" height="240" class="hidden"></video>
+          <canvas id="canvas" width="320" height="240" class="hidden"></canvas>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button onclick="enroll()">Enroll</button>
+        </div>
+        <pre id="e_out">Not enrolled yet.</pre>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
 const ICO = {
   grid:'<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
   video:'<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/>',

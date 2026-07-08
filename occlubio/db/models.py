@@ -96,4 +96,6 @@ class Alert(Base):
     duration_s: Mapped[float] = mapped_column(Float, default=0.0)
     appearances: Mapped[int] = mapped_column(Integer, default=1)
     seen: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    video_start_s: Mapped[float] = mapped_column(Float, default=0.0)
+    video_end_s: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

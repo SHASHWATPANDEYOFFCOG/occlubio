@@ -14,9 +14,9 @@ from fastapi import (BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTP
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session as DBSession
 
-from occlubio.api.schemas import (AlertList, AlertOut, AuthResponse, EnrollResponse, JobCreated,
-                                  JobOut, LoginRequest, MessageCreate, MessageOut, RegisterRequest,
-                                  SightingOut, UserOut, UserSightings)
+from occlubio.api.schemas import (AlertList, AlertOut, AuthResponse, AvailabilityOut, EnrollResponse,
+                                  JobCreated, JobOut, LoginRequest, MessageCreate, MessageOut,
+                                  RegisterRequest, SightingOut, UserOut, UserSightings)
 from occlubio.db import SessionLocal, get_db, init_db
 from occlubio.db.models import Alert, Enrollment, Job, Message, Session, Sighting, User
 from occlubio.service.face_service import (FaceService, decode_image, hash_password,
@@ -126,10 +126,16 @@ def register(req: RegisterRequest, db: DBSession = Depends(get_db)):
             raise HTTPException(422, "roll number is required for a student")
         username = roll_number
 
-    if db.query(User).filter((User.username == username) | (User.email == req.email)).first():
-        raise HTTPException(409, "roll number / username or email already taken")
+    field_label = "roll number" if role == "user" else "username"
+    if db.query(User).filter(User.email == req.email).first():
+        raise HTTPException(409, detail={"field": "email",
+                                         "message": "that email is already registered"})
     if roll_number and db.query(User).filter(User.roll_number == roll_number).first():
-        raise HTTPException(409, "roll number already registered")
+        raise HTTPException(409, detail={"field": "roll_number",
+                                         "message": "that roll number is already registered"})
+    if db.query(User).filter(User.username == username).first():
+        raise HTTPException(409, detail={"field": field_label.replace(" ", "_"),
+                                         "message": f"that {field_label} is already taken"})
 
     user = User(username=username, full_name=full_name, roll_number=roll_number,
                 email=req.email, password_hash=hash_password(req.password), role=role)
@@ -140,6 +146,22 @@ def register(req: RegisterRequest, db: DBSession = Depends(get_db)):
     return AuthResponse(token=token, user_id=user.id, username=user.username,
                         full_name=user.full_name or "", roll_number=user.roll_number,
                         role=user.role, enrolled=False)
+
+
+@app.get("/api/check-availability", response_model=AvailabilityOut)
+def check_availability(field: str, value: str, db: DBSession = Depends(get_db)):
+    field = (field or "").strip().lower()
+    value = (value or "").strip()
+    if field == "email":
+        value = value.lower()
+    if field not in ("username", "roll_number", "email"):
+        raise HTTPException(422, "field must be username, roll_number or email")
+    if not value:
+        return AvailabilityOut(field=field, value=value, available=False, reason="required")
+    column = {"username": User.username, "roll_number": User.roll_number, "email": User.email}[field]
+    taken = db.query(User).filter(column == value).first() is not None
+    return AvailabilityOut(field=field, value=value, available=not taken,
+                           reason=("already taken" if taken else None))
 
 
 @app.post("/api/login", response_model=AuthResponse)
@@ -274,18 +296,25 @@ def my_messages(caller: User = Depends(current_user), db: DBSession = Depends(ge
     return [_msg_out(m, names) for m in msgs]
 
 
-def _alert_out(a: Alert) -> AlertOut:
+def _alert_out(a: Alert, has_video: bool = False) -> AlertOut:
     return AlertOut(id=a.id, job_id=a.job_id, camera=a.camera, label=a.label,
                     entered_at=a.entered_at.isoformat(timespec="seconds"),
                     exited_at=a.exited_at.isoformat(timespec="seconds"),
-                    duration_s=round(a.duration_s, 2), appearances=a.appearances, seen=a.seen)
+                    duration_s=round(a.duration_s, 2), appearances=a.appearances, seen=a.seen,
+                    video_start_s=round(a.video_start_s or 0.0, 2),
+                    video_end_s=round(a.video_end_s or 0.0, 2), has_video=has_video)
 
 
 @app.get("/api/alerts", response_model=AlertList)
 def list_alerts(user: User = Depends(require_authority), db: DBSession = Depends(get_db)):
     rows = db.query(Alert).order_by(Alert.created_at.desc()).all()
     unread = sum(1 for a in rows if not a.seen)
-    return AlertList(unread=unread, alerts=[_alert_out(a) for a in rows])
+    playable: dict = {}
+    for a in rows:
+        if a.job_id not in playable:
+            job = db.get(Job, a.job_id)
+            playable[a.job_id] = bool(job and job.input_path and Path(job.input_path).exists())
+    return AlertList(unread=unread, alerts=[_alert_out(a, playable.get(a.job_id, False)) for a in rows])
 
 
 @app.post("/api/alerts/read")
@@ -382,6 +411,7 @@ def _record_alerts(db: DBSession, job: Job, report: dict) -> int:
             exited_at=base + timedelta(seconds=end_s),
             duration_s=float(a.get("visible_s", 0.0)),
             appearances=int(a.get("appearances", 1)), seen=False,
+            video_start_s=start_s, video_end_s=end_s,
         ))
         n += 1
     db.commit()
@@ -484,15 +514,21 @@ def job_status(job_id: int, user: User = Depends(require_authority),
                   output_video=(f"/api/jobs/{job.id}/video" if job.output_video else None))
 
 
-@app.get("/api/jobs/{job_id}/video")
-def job_video(job_id: int, token: Optional[str] = None,
-              authorization: Optional[str] = Header(None), db: DBSession = Depends(get_db)):
+def _authority_from_token(token: Optional[str], authorization: Optional[str],
+                          db: DBSession) -> User:
     tok = token or (authorization.split(" ", 1)[1].strip()
                     if authorization and " " in authorization else None)
     sess = db.get(Session, tok) if tok else None
     caller = db.get(User, sess.user_id) if sess else None
     if not caller or caller.role != "authority":
         raise HTTPException(403, "authority role required")
+    return caller
+
+
+@app.get("/api/jobs/{job_id}/video")
+def job_video(job_id: int, token: Optional[str] = None,
+              authorization: Optional[str] = Header(None), db: DBSession = Depends(get_db)):
+    _authority_from_token(token, authorization, db)
     job = db.get(Job, job_id)
     if not job or not job.output_video or not Path(job.output_video).exists():
         raise HTTPException(404, "video not ready")
@@ -500,4 +536,18 @@ def job_video(job_id: int, token: Optional[str] = None,
         str(Path(job.output_video).resolve()),
         media_type="video/mp4",
         filename=f"identification_job_{job_id}.mp4",
+    )
+
+
+@app.get("/api/jobs/{job_id}/source")
+def job_source(job_id: int, token: Optional[str] = None,
+               authorization: Optional[str] = Header(None), db: DBSession = Depends(get_db)):
+    _authority_from_token(token, authorization, db)
+    job = db.get(Job, job_id)
+    if not job or not job.input_path or not Path(job.input_path).exists():
+        raise HTTPException(404, "source clip not available")
+    return FileResponse(
+        str(Path(job.input_path).resolve()),
+        media_type="video/mp4",
+        filename=f"clip_job_{job_id}.mp4",
     )

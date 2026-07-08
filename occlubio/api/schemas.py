@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import re
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.]{3,32}$")
+ROLL_RE = re.compile(r"^[A-Za-z0-9-]{3,20}$")
+PASSWORD_MIN = 8
 
 
 class RegisterRequest(BaseModel):
@@ -14,10 +20,70 @@ class RegisterRequest(BaseModel):
     username: Optional[str] = None
     authority_code: Optional[str] = None
 
+    @field_validator("email")
+    @classmethod
+    def _email_ok(cls, v: str) -> str:
+        v = (v or "").strip().lower()
+        if not EMAIL_RE.match(v):
+            raise ValueError("enter a valid email address")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def _password_ok(cls, v: str) -> str:
+        if len(v or "") < PASSWORD_MIN:
+            raise ValueError(f"password must be at least {PASSWORD_MIN} characters")
+        if (v or "").strip() != v:
+            raise ValueError("password cannot start or end with a space")
+        return v
+
+    @field_validator("full_name")
+    @classmethod
+    def _name_ok(cls, v: str) -> str:
+        v = (v or "").strip()
+        if len(v) < 2:
+            raise ValueError("full name is required")
+        return v
+
+    @field_validator("roll_number")
+    @classmethod
+    def _roll_ok(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if v and not ROLL_RE.match(v):
+            raise ValueError("roll number may use 3-20 letters, digits or hyphens")
+        return v
+
+    @field_validator("username")
+    @classmethod
+    def _username_ok(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if v and not USERNAME_RE.match(v):
+            raise ValueError("username may use 3-32 letters, digits, '.' or '_'")
+        return v
+
 
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+    @field_validator("username")
+    @classmethod
+    def _ident_ok(cls, v: str) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("enter your roll number or username")
+        return v
+
+
+class AvailabilityOut(BaseModel):
+    field: str
+    value: str
+    available: bool
+    reason: Optional[str] = None
 
 
 class UserOut(BaseModel):
@@ -96,6 +162,9 @@ class AlertOut(BaseModel):
     duration_s: float
     appearances: int
     seen: bool
+    video_start_s: float = 0.0
+    video_end_s: float = 0.0
+    has_video: bool = False
 
 
 class AlertList(BaseModel):

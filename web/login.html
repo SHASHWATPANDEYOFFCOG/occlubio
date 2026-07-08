@@ -116,6 +116,24 @@ button:focus-visible{outline:none; box-shadow:0 0 0 3px rgba(255,255,255,.5), va
 @keyframes swipe{to{left:130%}}
 .msg{margin-top:14px; font-size:.85rem; min-height:18px}
 .ok{color:var(--ok)} .err{color:var(--err)}
+
+.field{position:relative}
+.pass-wrap{position:relative}
+.pass-wrap input{padding-right:70px}
+.toggle-pass{position:absolute; right:8px; top:50%; transform:translateY(-50%); width:auto; margin:0;
+  padding:5px 9px; font-size:.72rem; font-weight:600; background:rgba(124,148,214,.14); color:var(--muted);
+  border:1px solid var(--line); border-radius:6px; box-shadow:none; cursor:pointer}
+.toggle-pass::after{display:none}
+.toggle-pass:hover{transform:translateY(-50%); color:var(--txt); border-color:var(--line-2); box-shadow:none; filter:none}
+.hint-txt{font-size:.72rem; color:var(--faint); margin-top:4px; min-height:14px; transition:color var(--dur-2)}
+.hint-txt.err{color:var(--err)}
+.hint-txt.ok{color:var(--ok)}
+.hint-txt.checking{color:var(--muted)}
+input.invalid{border-color:var(--err)}
+input.invalid:focus{box-shadow:0 0 0 3px rgba(239,68,68,.22)}
+input.valid{border-color:rgba(34,197,94,.55)}
+.pw-meter{height:4px; border-radius:3px; margin-top:6px; background:rgba(124,148,214,.14); overflow:hidden}
+.pw-meter span{display:block; height:100%; width:0; border-radius:3px; transition:width var(--dur-2), background var(--dur-2)}
 .foot{margin-top:18px; text-align:center; color:var(--faint); font-size:.75rem; display:flex; align-items:center; justify-content:center; gap:7px}
 .foot .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:blink 2.4s var(--ease-io) infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
@@ -149,16 +167,20 @@ form{animation:formIn .4s var(--ease-out) both}
       <div class="tab" id="tab_reg" onclick="switchTab('reg')">Create account</div>
     </div>
 
-    <form id="form_login" onsubmit="doLogin(event)">
-      <label>Roll number or username</label>
-      <input id="l_user" autocomplete="username" placeholder="roll number / username" required />
-      <label>Password</label>
-      <input id="l_pass" type="password" autocomplete="current-password" placeholder="••••••••" required />
+    <form id="form_login" onsubmit="doLogin(event)" novalidate>
+      <label for="l_user">Roll number or username</label>
+      <input id="l_user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false"
+             placeholder="roll number / username" required />
+      <label for="l_pass">Password</label>
+      <div class="pass-wrap">
+        <input id="l_pass" type="password" autocomplete="current-password" placeholder="••••••••" required />
+        <button type="button" class="toggle-pass" onclick="togglePass('l_pass', this)">Show</button>
+      </div>
       <button type="submit">Sign in</button>
       <div class="msg" id="l_msg"></div>
     </form>
 
-    <form id="form_reg" class="hidden" onsubmit="doRegister(event)">
+    <form id="form_reg" class="hidden" onsubmit="doRegister(event)" novalidate>
       <label>Account type</label>
       <div class="roles">
         <div class="role active" id="role_user" onclick="pickRole('user')">
@@ -167,25 +189,48 @@ form{animation:formIn .4s var(--ease-out) both}
           Authority<small>operate surveillance</small></div>
       </div>
 
-      <div id="roll_wrap">
-        <label>Roll number</label>
-        <input id="r_roll" placeholder="e.g. 21075001" />
+      <div id="roll_wrap" class="field">
+        <label for="r_roll">Roll number</label>
+        <input id="r_roll" autocapitalize="characters" spellcheck="false" placeholder="e.g. 21075001"
+               oninput="clearHint('r_roll')" onblur="checkAvail('roll_number','r_roll')" />
+        <div class="hint-txt" id="h_roll">3–20 letters, digits or hyphens · used as your login</div>
       </div>
-      <div id="user_wrap" class="hidden">
-        <label>Username</label>
-        <input id="r_user" placeholder="unique username" />
+      <div id="user_wrap" class="hidden field">
+        <label for="r_user">Username</label>
+        <input id="r_user" autocapitalize="none" spellcheck="false" placeholder="unique username"
+               oninput="clearHint('r_user')" onblur="checkAvail('username','r_user')" />
+        <div class="hint-txt" id="h_user">3–32 letters, digits, “.” or “_”</div>
       </div>
 
-      <label>Full name</label>
-      <input id="r_name" placeholder="your full name" required />
-      <label>Email</label>
-      <input id="r_email" type="email" placeholder="you@example.com" required />
-      <label>Password</label>
-      <input id="r_pass" type="password" placeholder="choose a password" required />
+      <div class="field">
+        <label for="r_name">Full name</label>
+        <input id="r_name" autocomplete="name" placeholder="your full name" required
+               oninput="clearHint('r_name')" />
+        <div class="hint-txt" id="h_name"></div>
+      </div>
+      <div class="field">
+        <label for="r_email">Email</label>
+        <input id="r_email" type="email" inputmode="email" autocomplete="email" autocapitalize="none"
+               spellcheck="false" placeholder="you@example.com" required
+               oninput="clearHint('r_email')" onblur="checkAvail('email','r_email')" />
+        <div class="hint-txt" id="h_email"></div>
+      </div>
+      <div class="field">
+        <label for="r_pass">Password</label>
+        <div class="pass-wrap">
+          <input id="r_pass" type="password" autocomplete="new-password" placeholder="at least 8 characters"
+                 required minlength="8" oninput="onPassInput()" />
+          <button type="button" class="toggle-pass" onclick="togglePass('r_pass', this)">Show</button>
+        </div>
+        <div class="pw-meter"><span id="pw_bar"></span></div>
+        <div class="hint-txt" id="h_pass">Use at least 8 characters.</div>
+      </div>
 
-      <div id="auth_code_wrap" class="hidden">
-        <label>Authority access code</label>
-        <input id="r_code" placeholder="operator access code" />
+      <div id="auth_code_wrap" class="hidden field">
+        <label for="r_code">Authority access code</label>
+        <input id="r_code" autocomplete="off" placeholder="operator access code"
+               oninput="clearHint('r_code')" />
+        <div class="hint-txt" id="h_code"></div>
       </div>
       <button type="submit">Create account</button>
       <div class="msg" id="r_msg"></div>
@@ -197,6 +242,10 @@ form{animation:formIn .4s var(--ease-out) both}
 <script>
 if (localStorage.getItem('occlubio_session')) location.replace('/');
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const USERNAME_RE = /^[A-Za-z0-9_.]{3,32}$/;
+const ROLL_RE = /^[A-Za-z0-9-]{3,20}$/;
+
 let regRole = 'user';
 function pickRole(r){
   regRole = r;
@@ -205,6 +254,55 @@ function pickRole(r){
   roll_wrap.classList.toggle('hidden', r !== 'user');
   user_wrap.classList.toggle('hidden', r !== 'authority');
   auth_code_wrap.classList.toggle('hidden', r !== 'authority');
+}
+
+function togglePass(id, btn){
+  const el = document.getElementById(id);
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  btn.textContent = show ? 'Hide' : 'Show';
+}
+function setHint(id, text, kind){
+  const h = document.getElementById('h_' + id.split('_')[1]);
+  const inp = document.getElementById(id);
+  if(h){ h.textContent = text; h.className = 'hint-txt' + (kind ? ' ' + kind : ''); }
+  if(inp){ inp.classList.toggle('invalid', kind === 'err'); inp.classList.toggle('valid', kind === 'ok'); }
+}
+function clearHint(id){
+  const inp = document.getElementById(id);
+  if(inp) inp.classList.remove('invalid', 'valid');
+  const h = document.getElementById('h_' + id.split('_')[1]);
+  if(h) h.className = 'hint-txt';
+}
+function onPassInput(){
+  clearHint('r_pass');
+  const v = r_pass.value;
+  let score = 0;
+  if(v.length >= 8) score++;
+  if(/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+  if(/\d/.test(v)) score++;
+  if(/[^A-Za-z0-9]/.test(v)) score++;
+  const pct = [0,25,55,80,100][score];
+  const col = score <= 1 ? '#ef4444' : score === 2 ? '#f59e0b' : score === 3 ? '#3b82f6' : '#22c55e';
+  pw_bar.style.width = pct + '%'; pw_bar.style.background = col;
+}
+
+async function checkAvail(field, id){
+  const el = document.getElementById(id);
+  const val = el.value.trim();
+  if(!val) return;
+  if(field === 'roll_number' && !ROLL_RE.test(val)){ return setHint(id, 'Roll number may use 3–20 letters, digits or hyphens.', 'err'); }
+  if(field === 'username' && !USERNAME_RE.test(val)){ return setHint(id, 'Username may use 3–32 letters, digits, “.” or “_”.', 'err'); }
+  if(field === 'email' && !EMAIL_RE.test(val)){ return setHint(id, 'Enter a valid email address.', 'err'); }
+  setHint(id, 'Checking availability…', 'checking');
+  try{
+    const res = await fetch(`/api/check-availability?field=${field}&value=${encodeURIComponent(val)}`);
+    const j = await res.json();
+    if(!res.ok){ return clearHint(id); }
+    const noun = field === 'roll_number' ? 'roll number' : field;
+    if(j.available) setHint(id, `This ${noun} is available.`, 'ok');
+    else setHint(id, `That ${noun} is already taken — try another.`, 'err');
+  }catch(e){ clearHint(id); }
 }
 function switchTab(which){
   const login = which === 'login';
@@ -220,27 +318,63 @@ function save(j){
   }));
 }
 
+function detailToText(detail){
+  if(!detail) return 'Something went wrong.';
+  if(typeof detail === 'string') return detail;
+  if(Array.isArray(detail)) return detail.map(d => d.msg || d.message || '').filter(Boolean).join(' · ') || 'Invalid input.';
+  if(typeof detail === 'object') return detail.message || JSON.stringify(detail);
+  return String(detail);
+}
+
 async function doLogin(e){
   e.preventDefault();
+  const ident = l_user.value.trim();
+  if(!ident){ l_msg.innerHTML = '<span class="err">Enter your roll number or username.</span>'; return; }
+  if(!l_pass.value){ l_msg.innerHTML = '<span class="err">Enter your password.</span>'; return; }
   l_msg.textContent = 'Signing in…'; l_msg.className = 'msg';
   const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ username:l_user.value.trim(), password:l_pass.value }) });
+    body: JSON.stringify({ username:ident, password:l_pass.value }) });
   const j = await res.json();
   if(res.ok){ save(j); l_msg.innerHTML = '<span class="ok">Welcome back — redirecting…</span>'; location.replace('/'); }
-  else l_msg.innerHTML = `<span class="err">${j.detail || 'Invalid credentials'}</span>`;
+  else l_msg.innerHTML = `<span class="err">${detailToText(j.detail) || 'Invalid credentials'}</span>`;
+}
+
+function validateRegister(){
+  let ok = true;
+  const name = r_name.value.trim();
+  if(name.length < 2){ setHint('r_name', 'Please enter your full name.', 'err'); ok = false; }
+  const email = r_email.value.trim();
+  if(!EMAIL_RE.test(email)){ setHint('r_email', 'Enter a valid email address.', 'err'); ok = false; }
+  if(r_pass.value.length < 8){ setHint('r_pass', 'Password must be at least 8 characters.', 'err'); ok = false; }
+  if(regRole === 'user'){
+    if(!ROLL_RE.test(r_roll.value.trim())){ setHint('r_roll', 'Roll number may use 3–20 letters, digits or hyphens.', 'err'); ok = false; }
+  } else {
+    if(!USERNAME_RE.test(r_user.value.trim())){ setHint('r_user', 'Username may use 3–32 letters, digits, “.” or “_”.', 'err'); ok = false; }
+    if(!r_code.value.trim()){ setHint('r_code', 'Authority access code is required.', 'err'); ok = false; }
+  }
+  return ok;
 }
 
 async function doRegister(e){
   e.preventDefault();
+  if(!validateRegister()){ r_msg.innerHTML = '<span class="err">Please fix the highlighted fields.</span>'; return; }
   r_msg.textContent = 'Creating account…'; r_msg.className = 'msg';
   const body = { role:regRole, full_name:r_name.value.trim(), email:r_email.value.trim(), password:r_pass.value };
-  if(regRole === 'authority'){ body.username = r_user.value.trim(); body.authority_code = r_code.value; }
+  if(regRole === 'authority'){ body.username = r_user.value.trim(); body.authority_code = r_code.value.trim(); }
   else { body.roll_number = r_roll.value.trim(); }
   const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body) });
   const j = await res.json();
-  if(res.ok){ save(j); r_msg.innerHTML = '<span class="ok">Account created — redirecting…</span>'; location.replace('/'); }
-  else r_msg.innerHTML = `<span class="err">${j.detail || JSON.stringify(j)}</span>`;
+  if(res.ok){ save(j); r_msg.innerHTML = '<span class="ok">Account created — redirecting…</span>'; location.replace('/'); return; }
+  const d = j.detail;
+  if(d && typeof d === 'object' && !Array.isArray(d) && d.field){
+    const map = {email:'r_email', roll_number:'r_roll', username:'r_user'};
+    const id = map[d.field];
+    if(id){ setHint(id, d.message, 'err'); document.getElementById(id).focus(); }
+    r_msg.innerHTML = `<span class="err">${d.message}</span>`;
+  } else {
+    r_msg.innerHTML = `<span class="err">${detailToText(d)}</span>`;
+  }
 }
 
 (function(){

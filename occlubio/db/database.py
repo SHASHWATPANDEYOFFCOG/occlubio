@@ -30,6 +30,8 @@ def _migrate() -> None:
     _add_column("users", "roll_number", "roll_number VARCHAR(64)")
     _add_column("jobs", "window_end", "window_end DATETIME")
     _add_column("sightings", "appearances", "appearances INTEGER DEFAULT 1")
+    _add_column("alerts", "video_start_s", "video_start_s FLOAT DEFAULT 0.0")
+    _add_column("alerts", "video_end_s", "video_end_s FLOAT DEFAULT 0.0")
 
 
 def init_db() -> None:

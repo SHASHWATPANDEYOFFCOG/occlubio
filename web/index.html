@@ -155,7 +155,36 @@ tbody tr:hover{background:rgba(124,148,214,.06)}
   transition:transform var(--dur-2) var(--spring), box-shadow var(--dur-2)}
 .alertcard::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--err)}
 .alertcard:hover{transform:translateX(3px); box-shadow:var(--e2)}
+.alertcard .row button{padding:6px 12px; font-size:.82rem}
 .navbadge{background:var(--err); color:#fff; font-size:.7rem; font-weight:700; padding:1px 7px; border-radius:var(--r-full); margin-left:auto; animation:badgePulse 2s var(--ease-io) infinite}
+
+.modal-scrim{position:fixed; inset:0; z-index:100; background:rgba(3,6,16,.72); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center; padding:20px; opacity:0; pointer-events:none;
+  transition:opacity var(--dur-2)}
+.modal-scrim.open{opacity:1; pointer-events:auto}
+.modal{width:100%; max-width:760px; max-height:92vh; overflow:auto; background:linear-gradient(180deg,var(--surface),var(--surface-2));
+  border:1px solid var(--line-2); border-radius:var(--r-lg); box-shadow:var(--e4); padding:20px 22px;
+  transform:translateY(14px) scale(.98); transition:transform var(--dur-3) var(--spring)}
+.modal-scrim.open .modal{transform:none}
+.modal-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px}
+.modal-head h2{margin:0; font-size:1.05rem}
+.modal-close{width:34px; height:34px; padding:0; flex:none; display:grid; place-items:center; background:transparent;
+  border:1px solid var(--line); color:var(--muted); box-shadow:none; font-size:1.1rem}
+.modal-close::after{display:none}
+.modal-close:hover{color:var(--txt); border-color:var(--line-2); background:rgba(124,148,214,.08); box-shadow:none; transform:none}
+.modal video{width:100%; max-width:100%; aspect-ratio:16/9; background:#000; display:block}
+.timeline{position:relative; height:26px; margin:12px 0 4px; border-radius:7px; cursor:pointer;
+  background:rgba(8,12,26,.8); border:1px solid var(--line); overflow:hidden}
+.timeline .band{position:absolute; top:0; bottom:0; background:linear-gradient(180deg,rgba(239,68,68,.5),rgba(239,68,68,.28));
+  border-left:2px solid var(--err); border-right:2px solid var(--err)}
+.timeline .played{position:absolute; top:0; bottom:0; left:0; background:rgba(59,130,246,.16)}
+.timeline .head{position:absolute; top:-2px; bottom:-2px; width:2px; background:#fff; box-shadow:0 0 6px rgba(255,255,255,.8)}
+.tl-legend{display:flex; gap:16px; font-size:.75rem; color:var(--muted); margin-bottom:10px; flex-wrap:wrap}
+.tl-legend .sw{display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:-2px; margin-right:5px}
+.tl-scale{display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:.7rem; color:var(--faint); margin-top:2px}
+.jumpbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px}
+.jumpbar button{padding:7px 12px; font-size:.82rem}
+.jumpbar .clock{font-family:var(--font-mono); font-size:.82rem; color:var(--muted); margin-left:auto}
 @keyframes badgePulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
 
 .skel{display:inline-block; height:12px; width:100%; border-radius:6px;
@@ -382,6 +411,38 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
       </div>
     </section>
   </main>
+</div>
+
+<div class="modal-scrim" id="clip_modal" onclick="if(event.target===this) closeClip()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="clip_title">
+    <div class="modal-head">
+      <div>
+        <h2 id="clip_title">Unknown person</h2>
+        <div class="muted" id="clip_sub" style="font-size:.82rem; margin-top:4px"></div>
+      </div>
+      <button class="modal-close" onclick="closeClip()" aria-label="Close">✕</button>
+    </div>
+    <video id="clip_video" playsinline preload="metadata"></video>
+    <div class="tl-legend">
+      <span><span class="sw" style="background:linear-gradient(180deg,rgba(239,68,68,.6),rgba(239,68,68,.3))"></span>unknown present</span>
+      <span><span class="sw" style="background:rgba(59,130,246,.4)"></span>watched</span>
+      <span class="muted">Click the timeline or drag the video bar to review before &amp; after.</span>
+    </div>
+    <div class="timeline" id="clip_tl" onclick="tlSeek(event)">
+      <div class="played" id="clip_played"></div>
+      <div class="band" id="clip_band"></div>
+      <div class="head" id="clip_head"></div>
+    </div>
+    <div class="tl-scale"><span>0:00</span><span id="clip_dur">0:00</span></div>
+    <div class="jumpbar">
+      <button onclick="clipTo('start')">⏮ To appearance</button>
+      <button class="ghost" onclick="clipNudge(-5)">−5s</button>
+      <button class="ghost" onclick="clipNudge(5)">+5s</button>
+      <button class="ghost" onclick="clipPlay()"><span id="clip_pp">▶ Play</span></button>
+      <span class="clock" id="clip_clock">0:00 / 0:00</span>
+    </div>
+    <p class="muted" id="clip_note" style="font-size:.78rem; margin:12px 0 0"></p>
+  </div>
 </div>
 
 <script>
@@ -612,14 +673,22 @@ async function loadAlerts(){
     if(!r.alerts.length){
       alerts_list.innerHTML = '<p class="muted">No unknown-person alerts yet.</p>';
     } else {
-      alerts_list.innerHTML = r.alerts.map(a=>`<div class="alertcard">
+      window._alerts = {};
+      alerts_list.innerHTML = r.alerts.map(a=>{
+        window._alerts[a.id] = a;
+        return `<div class="alertcard">
         <div class="row" style="justify-content:space-between">
           <b class="err">⚠ ${a.label} — unknown person</b>
           ${a.seen?'':'<span class="badge" style="background:var(--err);color:#fff">new</span>'}</div>
         <div class="muted" style="font-size:.85rem; margin-top:6px">
           camera <b style="color:var(--txt)">${a.camera}</b> ·
           present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} (${a.duration_s}s) · job #${a.job_id}</div>
-      </div>`).join('');
+        <div class="row" style="margin-top:10px">
+          ${a.has_video
+            ? `<button onclick="openClip(${a.id})">${svg('video')} View clip at this moment</button>`
+            : `<span class="muted" style="font-size:.8rem">Source clip no longer on disk — can't replay.</span>`}
+        </div>
+      </div>`;}).join('');
     }
     await api('/api/alerts/read', {method:'POST'});
     refreshAlertBadge();
@@ -798,6 +867,65 @@ function renderReport(j){
   v_result.innerHTML = html;
   refreshAlertBadge();
 }
+
+const clipV = document.getElementById('clip_video');
+let clipState = {start:0, end:0, dur:0};
+const clipFmt = s => { s = Math.max(0, s||0); const m = Math.floor(s/60); return m + ':' + String(Math.floor(s%60)).padStart(2,'0'); };
+
+function openClip(id){
+  const a = (window._alerts||{})[id];
+  if(!a) return;
+  clipState = {start:a.video_start_s||0, end:a.video_end_s||0, dur:0};
+  clip_title.textContent = `${a.label} — unknown person`;
+  clip_sub.innerHTML = `camera <b style="color:var(--txt)">${a.camera}</b> · present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} · job #${a.job_id}`;
+  clip_note.textContent = '';
+  clip_band.style.left = clip_band.style.width = '0'; clip_played.style.width = '0'; clip_head.style.left = '0';
+  clip_dur.textContent = clipFmt(0); clip_clock.textContent = '0:00 / 0:00';
+  clipV.src = `/api/jobs/${a.job_id}/source?token=${encodeURIComponent(S.token)}`;
+  clip_modal.classList.add('open');
+  document.addEventListener('keydown', clipKey);
+}
+function closeClip(){
+  clip_modal.classList.remove('open');
+  clipV.pause(); clipV.removeAttribute('src'); clipV.load();
+  document.removeEventListener('keydown', clipKey);
+}
+function clipKey(e){ if(e.key === 'Escape') closeClip(); }
+
+function drawBand(){
+  const d = clipState.dur || 0;
+  if(d <= 0) return;
+  const L = Math.min(1, clipState.start / d) * 100;
+  const W = Math.max(1.2, Math.min(1, (clipState.end - clipState.start) / d) * 100);
+  clip_band.style.left = L + '%'; clip_band.style.width = W + '%';
+}
+clipV.addEventListener('loadedmetadata', ()=>{
+  clipState.dur = isFinite(clipV.duration) ? clipV.duration : (clipState.end + 3);
+  clip_dur.textContent = clipFmt(clipState.dur);
+  drawBand();
+  clipV.currentTime = Math.max(0, clipState.start - 3);
+});
+clipV.addEventListener('timeupdate', ()=>{
+  const d = clipState.dur || clipV.duration || 1;
+  const p = Math.min(1, clipV.currentTime / d) * 100;
+  clip_played.style.width = p + '%'; clip_head.style.left = p + '%';
+  clip_clock.textContent = `${clipFmt(clipV.currentTime)} / ${clipFmt(d)}`;
+});
+clipV.addEventListener('play',  ()=> clip_pp.textContent = '⏸ Pause');
+clipV.addEventListener('pause', ()=> clip_pp.textContent = '▶ Play');
+clipV.addEventListener('error', ()=>{
+  clip_note.innerHTML = `This browser can't decode this clip's codec. ` +
+    `<a href="${clipV.src}" download>Download the clip</a> and open it in VLC — the unknown person appears at ${clipFmt(clipState.start)}.`;
+});
+
+function tlSeek(e){
+  const r = clip_tl.getBoundingClientRect();
+  const frac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  if(clipState.dur) clipV.currentTime = frac * clipState.dur;
+}
+function clipTo(which){ if(which === 'start') clipV.currentTime = clipState.start; }
+function clipNudge(d){ clipV.currentTime = Math.max(0, Math.min((clipState.dur||clipV.duration), clipV.currentTime + d)); }
+function clipPlay(){ clipV.paused ? clipV.play() : clipV.pause(); }
 
 paintIcons();
 show(items[0].v);

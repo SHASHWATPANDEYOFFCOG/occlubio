@@ -16,6 +16,9 @@ This repo is the **working implementation scaffold** of that architecture.
 
 ## Quickstart (CPU works; GPU if available)
 
+> Use **Python 3.10–3.12** — some CV dependencies (opencv / insightface / onnxruntime / faiss)
+> do not ship wheels for newer interpreters yet.
+
 ```bash
 # from the repo root
 python -m venv .venv
@@ -58,6 +61,33 @@ python scripts/benchmark.py --source clip.mp4 --frames 300
 
 ---
 
+## Web platform (surveillance console)
+
+A full account-based web console on top of the pipeline — FastAPI + SQLite + FAISS:
+
+```bash
+pip install -e ".[infer,api]"
+uvicorn occlubio.api.app:app --port 8001
+# open http://localhost:8001  (API docs at /docs)
+```
+
+- **Two roles.** Students sign up with their **roll number** (used as the login username) and
+  enroll their own face from photos or a webcam burst. Authorities sign up with a username plus
+  an access code (set `OCCLUBIO_AUTHORITY_CODE` in the environment before starting the server).
+- **Registration is validated end-to-end** — email/password/roll-number format checks, live
+  "already taken" availability feedback, and per-field duplicate errors.
+- **Targeted video identification.** An authority uploads a clip and searches it for **one
+  person** — an enrolled subject or an uploaded photo. Appearance windows are mapped from clip
+  time to real gate time via the clip's recorded start/end.
+- **Unknown-person alerts.** Every un-enrolled face found in a processed clip raises an alert.
+  Each alert can be replayed in the browser: the player jumps to the moment the person appears,
+  with a timeline band marking exactly when they are present, so the operator can scrub before
+  and after the event.
+- **Gate activity & notices.** Per-subject daily first-in/last-out records per camera, plus
+  direct/broadcast notices from authorities to participants.
+- The SQLite database (`occlubio.db`) is the source of truth; the FAISS index is rebuilt from it
+  on startup and after every enrollment change.
+
 ## What maps to which roadmap phase
 
 | Roadmap phase (in the architecture doc) | Code here |
@@ -84,20 +114,27 @@ occlubio/            # the package
   gallery/           # FAISS 1:N enroll + search + persistence
   data/              # synthetic occlusion + photometric augmentation
   training/          # AdaFace head, dataset, train+ONNX export
-scripts/             # enroll / recognize / benchmark / make_occluded_dataset
+  analytics/         # per-identity appearance windows + report building
+  service/           # face service used by the web platform
+  db/                # SQLAlchemy models + SQLite migrations
+  api/               # FastAPI app (auth, enroll, identify, alerts, messages)
+web/                 # console UI (login + role-based dashboard)
+scripts/             # enroll / recognize / identify_video / benchmark / make_demo / build_report
 deepstream/          # sample DeepStream/TensorRT edge-deployment config
 tests/               # smoke tests (no network/model download required)
 configs/default.yaml # single source of truth for all knobs
 ```
 
-## Honest status
+## Status
 - **Runs today:** detection, alignment, embedding, FAISS enroll/search, video pipeline, occlusion
-  augmentation, quality gate, AdaFace training skeleton, benchmarking.
+  augmentation, quality gate, AdaFace training skeleton, benchmarking, and the full web platform
+  (accounts, enrollment, targeted video identification, alerts with clip review, notices).
 - **Hooks (you must supply weights/integration):** trained anti-spoof (MiniFASNet ONNX), trained
-  occlusion-type classifier, biometric template protection, gait/body-ReID fusion, DeepStream C/Python
-  deployment. Each is marked `# HOOK:` in code with what to plug in.
-- This code was written but **not executed in your environment** — run the smoke tests first:
-  `pip install -e .` then `pytest -q`.
+  occlusion-type classifier, biometric template protection, gait/body-ReID fusion, DeepStream
+  C/Python deployment — integration points are described in the architecture doc.
+- Verify an install with the smoke tests: `pip install -e ".[dev]"` then `pytest -q`.
+- Processing is CPU-bound without a GPU (roughly 0.4 FPS on video) — raise `--stride` / the
+  console's stride field for faster turnaround.
 
 > ⚠️ This is a surveillance/biometric system. Read the responsible-use section (§0) of the
 > architecture doc before any deployment: legal basis (EU AI Act / India DPDP Act), template

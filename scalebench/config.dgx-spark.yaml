@@ -1,0 +1,81 @@
+# ============================================================================
+# scalebench — DGX Spark (GB10 Grace Blackwell) configuration
+# ============================================================================
+# Target: NVIDIA DGX Spark — 20-core Arm CPU, Blackwell GPU, 128 GB unified
+# LPDDR5x @ 273 GB/s, 1-4 TB NVMe, DGX OS (aarch64).
+#
+# Run from the repo root AFTER scalebench/dgx_spark_setup.sh:
+#   python -m scalebench.run --config scalebench/config.dgx-spark.yaml
+#
+# Differences from the CPU baseline config:
+#   - embedding runs TensorRT/CUDA (falls back to CPU if unavailable)
+#   - flat + IVF run on GPU (faiss-gpu / cuVS); CAGRA (GPU graph) added
+#   - HNSW kept as CPU reference but capped at 1M (its CPU build time is the
+#     lesson, not the product path)
+#   - latency/memory sweep extends to 50M padded vectors (~102 GB float32 —
+#     fits unified memory; pad memmap streams from NVMe)
+#   - measured CPU baseline for comparison: scalebench/results/ on the
+#     Ryzen 5500U box (see DGX_SPARK_SCALABILITY_REPORT.md §3)
+
+seed: 42
+
+dataset:
+  name: celeba
+  images_dir: "data/celeba/img_align_celeba"      # symlinked by setup script
+  identity_file: "data/celeba/identity_CelebA.txt"
+
+split:
+  n_nonmated: 1000
+  max_gallery: 9000
+  max_mated_probes: 2000
+
+embedding:
+  model: buffalo_l
+  det_size: 320
+  batch_size: 128
+  dim: 512
+  providers: ["TensorrtExecutionProvider", "CUDAExecutionProvider", "CPUExecutionProvider"]
+
+sweep:
+  accuracy_sizes: [500, 1000, 2000, 5000, 9000]   # bounded by real identities
+  latency_sizes: [9000, 100000, 500000, 1000000, 5000000, 10000000, 25000000, 50000000]
+
+indexes:
+  flat:
+    enabled: true
+    gpu: true            # exact GPU scan — ground truth + honest SLA ceiling
+  ivf:
+    enabled: true
+    gpu: true
+    nlist: auto
+    nlist_max: 32768     # auto = 4*sqrt(N) clamped; 50M -> ~28K lists
+    nprobe_sweep: [8, 32, 128, 512]   # scale nprobe with nlist (measured lesson:
+                                      # fixed nprobe collapses recall as N grows)
+  hnsw:
+    enabled: true        # CPU reference only
+    max_n: 1000000
+    M: 32
+    ef_construction: 100
+    ef_search_sweep: [16, 64, 128]
+  cagra:
+    enabled: true        # GPU graph index (requires faiss-gpu-cuvs build)
+    graph_degree: 64
+    intermediate_graph_degree: 128
+
+measure:
+  k: 10
+  cmc_max_rank: 50
+  warmup_queries: 20
+  max_single_queries: 500
+  single_query_budget_s: 20
+  batch_sizes: [256, 2048]
+  target_fpir: 0.01
+  e2e_probe_images: 50
+  faiss_threads: 20
+
+sla:
+  p95_ms: 50.0
+  min_rank1: 0.95
+
+paths:
+  results_dir: "scalebench/results-dgx-spark"

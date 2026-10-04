@@ -1,0 +1,66 @@
+# ============================================================================
+# scalebench — 1:N face-recognition scalability benchmark configuration
+# ============================================================================
+# Environment (this machine, auto-verified at runtime and logged to env.json):
+#   Hardware:  AMD Ryzen 5 5500U (6C/12T), 5.8 GB RAM, no discrete GPU (CPU-only)
+#   Target max gallery size: 500,000  (RAM-bounded: a 1M x 512-d float32 index
+#     is 2.0 GB *per index*; with ~5.8 GB total RAM and the OS resident,
+#     1M cannot be built safely on this machine. 500K fits.)
+#   Embedding model: InsightFace buffalo_l (SCRFD det + ArcFace w600k_r50, 512-d)
+#   Latency SLA used for the recommendation: p95 < 50 ms (search-only)
+
+seed: 42
+
+dataset:
+  name: celeba
+  images_dir: "~/.cache/kagglehub/datasets/jessicali9530/celeba-dataset/versions/2/img_align_celeba/img_align_celeba"
+  identity_file: "data/celeba/identity_CelebA.txt"   # relative to the repo root
+
+split:
+  n_nonmated: 1000          # identities held OUT of the gallery (open-set probes)
+  max_gallery: 9000         # max REAL enrolled identities (10,177 total - holdout)
+  max_mated_probes: 2000    # mated probe cap (different image of enrolled ids)
+
+embedding:
+  model: buffalo_l
+  det_size: 320             # CelebA aligned crops are 178x218; 320 is plenty
+  batch_size: 32            # batched ArcFace forward passes
+  dim: 512
+
+sweep:
+  # Accuracy sweeps use REAL identities only (bounded by the dataset).
+  accuracy_sizes: [500, 1000, 2000, 5000, 9000]
+  # Latency/memory sweeps pad the real gallery with unit-normalized random
+  # embeddings (search cost does not depend on whether vectors are "real").
+  latency_sizes: [500, 1000, 2000, 5000, 9000, 50000, 100000, 200000, 500000]
+
+indexes:
+  flat:
+    enabled: true
+  ivf:
+    enabled: true
+    nlist: auto             # auto => clamp(4*sqrt(N), 64, 4096)
+    nprobe_sweep: [1, 4, 16, 64]
+  hnsw:
+    enabled: true
+    M: 32
+    ef_construction: 100
+    ef_search_sweep: [16, 64, 128]
+
+measure:
+  k: 10                     # neighbors retrieved per search
+  cmc_max_rank: 50
+  warmup_queries: 20
+  max_single_queries: 500   # per (N, index, param) single-query latency samples
+  single_query_budget_s: 20 # stop sampling after this much wall time (min 50 samples)
+  batch_sizes: [256]        # batched-throughput batch size(s)
+  target_fpir: 0.01         # report FNIR at this FPIR
+  e2e_probe_images: 50      # full detect+embed+search end-to-end samples
+  faiss_threads: 12
+
+sla:
+  p95_ms: 50.0              # target used in the final recommendation
+  min_rank1: 0.95
+
+paths:
+  results_dir: "scalebench/results"

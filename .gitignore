@@ -38,3 +38,6 @@ Thumbs.db
 *.db
 authority_code.txt
 *.log
+
+# scalebench outputs (cached face embeddings, curves, reports)
+scalebench/results*/

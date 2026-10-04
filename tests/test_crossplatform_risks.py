@@ -1,6 +1,5 @@
 import json
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -45,13 +44,7 @@ def test_video_write_then_read_back_in_unusual_dir(tmp_path, name):
     assert ok, f"OpenCV could not read back a video stored under '{name}'"
 
 
-_FAISS_WIN_NON_ASCII = pytest.mark.xfail(
-    sys.platform.startswith("win"), strict=True,
-    reason="ISSUE-004: faiss write_index/read_index use ANSI fopen on Windows; non-ASCII dirs fail")
-
-
-@pytest.mark.parametrize("name", [n if n.isascii() else pytest.param(n, marks=_FAISS_WIN_NON_ASCII)
-                                  for n in ODD_NAMES])
+@pytest.mark.parametrize("name", ODD_NAMES)
 def test_faiss_gallery_save_load_in_unusual_dir(tmp_path, name):
     pytest.importorskip("faiss")
     from occlubio.gallery import FaissGallery
@@ -61,6 +54,19 @@ def test_faiss_gallery_save_load_in_unusual_dir(tmp_path, name):
     g.save(tmp_path / name / "gal")
     g2 = FaissGallery.load(tmp_path / name / "gal")
     assert g2.identify(np.array([1, 0, 0, 0], np.float32), 0.5)[0] == "Zoë 李"
+
+
+def test_faiss_gallery_file_format_matches_native_writer(tmp_path):
+    faiss = pytest.importorskip("faiss")
+    from occlubio.gallery import FaissGallery
+
+    g = FaissGallery(dim=4)
+    g.add(np.array([0, 1, 0, 0], np.float32), "bob")
+    g.save(tmp_path / "new")
+    faiss.write_index(g.index, str(tmp_path / "native.faiss"))
+    assert (tmp_path / "new" / "index.faiss").read_bytes() == (tmp_path / "native.faiss").read_bytes()
+    legacy = faiss.read_index(str(tmp_path / "new" / "index.faiss"))
+    assert legacy.ntotal == 1
 
 
 @pytest.mark.parametrize("name", ODD_NAMES)

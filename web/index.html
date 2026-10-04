@@ -863,7 +863,11 @@ function renderReport(j){
   }
   const ua = r.summary?.unknown_alerts ?? 0;
   html += `<p>Unknown people flagged as alerts: <b>${ua}</b>${ua?` — see <a onclick="show('alerts')" style="cursor:pointer">Alerts</a>`:''}.</p>`;
-  if(j.output_video) html += `<p><a href="${j.output_video}?token=${encodeURIComponent(S.token)}" download>⬇ Download annotated video (.mp4)</a> — open in <b>VLC</b> (browsers can't preview mp4v).</p>`;
+  if(j.output_video){
+    const vurl = `${j.output_video}?token=${encodeURIComponent(S.token)}`;
+    if(r.processing?.browser_playable) html += `<video src="${vurl}" controls playsinline preload="metadata" style="width:100%;max-width:720px;border-radius:12px"></video>`;
+    html += `<p><a href="${vurl}" download>⬇ Download annotated video (.mp4)</a>${r.processing?.browser_playable ? '' : ` — open in <b>VLC</b> (browsers can't preview mp4v).`}</p>`;
+  }
   v_result.innerHTML = html;
   refreshAlertBadge();
 }

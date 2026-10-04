@@ -18,9 +18,13 @@ from occlubio.db.models import Enrollment, User
 from occlubio.gallery import FaissGallery
 from occlubio.pipeline import RecognitionEngine
 from occlubio.pipeline.aligner import norm_crop
+from occlubio.platform_support import browser_playable, open_video_writer
 from occlubio.utils import draw_results, ensure_dir, get_logger, l2_normalize
 
 log = get_logger("face_service")
+
+UNDECODABLE_HINT = ("if it was recorded on an iPhone (HEVC/H.265), re-export it as H.264 "
+                    "(or set Settings > Camera > Formats > Most Compatible) and upload again")
 
 
 def hash_password(password: str) -> str:
@@ -114,7 +118,7 @@ class FaceService:
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            raise ValueError(f"cannot open video: {video_path}")
+            raise ValueError(f"cannot open video: {Path(video_path).name} — {UNDECODABLE_HINT}")
         fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
         video_seconds = total_frames / fps if total_frames else 0.0
@@ -122,10 +126,11 @@ class FaceService:
         h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         scale = min(1.0, max_side / max(w, h)) if max(w, h) > max_side else 1.0
         ow, oh = int(w * scale), int(h * scale)
-        writer = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*"mp4v"), fps / max(1, stride), (ow, oh))
-        if not writer.isOpened():
+        try:
+            writer, codec = open_video_writer(out_path, fps / max(1, stride), (ow, oh))
+        except ValueError:
             cap.release()
-            raise ValueError("could not open video writer — mp4v codec unavailable in this OpenCV build")
+            raise
 
         mtf = self.min_track_frames if min_track_frames is None else min_track_frames
         logbook = IdentityLog(min_track_frames=mtf, merge_gap_s=self.merge_gap_s,
@@ -156,6 +161,8 @@ class FaceService:
 
         cap.release()
         writer.release()
+        if processed == 0:
+            raise ValueError(f"no frames could be decoded from this clip — {UNDECODABLE_HINT}")
         if not Path(out_path).exists() or Path(out_path).stat().st_size == 0:
             raise ValueError("annotated video is empty (codec failure or no frames decoded)")
         report = logbook.report()
@@ -170,6 +177,8 @@ class FaceService:
             "processing_fps": round(processed / proc_seconds, 2) if proc_seconds > 0 else 0.0,
             "video_seconds": round(video_seconds, 2),
             "stride": stride,
+            "video_codec": codec,
+            "browser_playable": browser_playable(codec),
         }
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -32,6 +33,11 @@ OUTPUT_DIR = ensure_dir(data_path("data/outputs"))
 AUTHORITY_CODE = os.environ.get("OCCLUBIO_AUTHORITY_CODE", "occlubio-authority")
 
 service: FaceService | None = None
+
+
+def _safe_suffix(filename: Optional[str]) -> str:
+    suffix = Path(filename or "").suffix.lower()
+    return suffix if re.fullmatch(r"\.[a-z0-9]{1,5}", suffix) else ".mp4"
 
 
 def _display(u: User) -> str:
@@ -493,7 +499,7 @@ async def identify(background: BackgroundTasks, file: UploadFile = File(...),
     db.add(job)
     db.commit()
     db.refresh(job)
-    dest = f"{UPLOAD_DIR}/job_{job.id}_{file.filename}"
+    dest = (UPLOAD_DIR / f"job_{job.id}{_safe_suffix(file.filename)}").as_posix()
     with open(dest, "wb") as out:
         out.write(await file.read())
     job.input_path = dest

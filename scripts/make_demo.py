@@ -5,6 +5,7 @@ import numpy as np
 from insightface.data import get_image
 
 from occlubio.pipeline.face_analyzer import FaceAnalyzer
+from occlubio.platform_support import open_video_writer
 from occlubio.utils import ensure_dir, get_logger
 
 log = get_logger("make_demo")
@@ -30,7 +31,7 @@ def main():
 
     out_path = "data/demo_input.mp4"
     fps, frames = 15, 60
-    writer = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (W, H))
+    writer, _ = open_video_writer(out_path, fps, (W, H))
     for t in range(frames):
         dx = int(25 * np.sin(t / frames * 2 * np.pi))
         dy = int(10 * np.cos(t / frames * 2 * np.pi))

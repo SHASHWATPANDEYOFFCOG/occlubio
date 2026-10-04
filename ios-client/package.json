@@ -1,0 +1,23 @@
+{
+  "name": "occlubio-ios",
+  "version": "0.1.0",
+  "private": true,
+  "description": "iOS/iPadOS shell for the occlubio console. The UI and processing stay on the occlubio server.",
+  "scripts": {
+    "config": "node scripts/write-server-config.mjs",
+    "sync": "npm run config && cap sync ios",
+    "open": "cap open ios",
+    "build:sim": "npm run sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
+    "typescript": "^5.6.0"
+  }
+}

@@ -9,6 +9,7 @@ from occlubio import load_config
 from occlubio.analytics import IdentityLog
 from occlubio.gallery import FaissGallery
 from occlubio.pipeline import RecognitionEngine
+from occlubio.platform_support import open_video_writer
 from occlubio.utils import draw_results, get_logger
 
 log = get_logger("identify_video")
@@ -44,7 +45,7 @@ def main():
     if args.out:
         w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        writer = cv2.VideoWriter(args.out, cv2.VideoWriter_fourcc(*"mp4v"), fps / max(1, args.stride), (w, h))
+        writer, _ = open_video_writer(args.out, fps / max(1, args.stride), (w, h))
 
     an = getattr(cfg, "analytics", None)
     logbook = IdentityLog(

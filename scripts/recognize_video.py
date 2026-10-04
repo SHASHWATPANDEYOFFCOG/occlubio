@@ -8,6 +8,7 @@ import cv2
 from occlubio import load_config
 from occlubio.gallery import FaissGallery
 from occlubio.pipeline import RecognitionEngine
+from occlubio.platform_support import open_video_writer
 from occlubio.utils import draw_results, get_logger
 
 log = get_logger("recognize_video")
@@ -42,7 +43,7 @@ def main():
         fps = cap.get(cv2.CAP_PROP_FPS) or 25
         w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        writer = cv2.VideoWriter(args.out, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+        writer, _ = open_video_writer(args.out, fps, (w, h))
 
     n, t0, ema_ms = 0, time.time(), None
     seen_ids: set[str] = set()

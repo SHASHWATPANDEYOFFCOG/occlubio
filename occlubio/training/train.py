@@ -8,6 +8,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from occlubio.data import OcclusionAugmentor
+from occlubio.platform_support import torch_device
 from occlubio.training.dataset import AlignedFaceDataset
 from occlubio.training.losses import AdaFace, ArcFace
 from occlubio.utils import ensure_dir, get_logger
@@ -64,7 +65,7 @@ def main():
     ap.add_argument("--lr", type=float, default=0.1)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--occlude-prob", type=float, default=0.5)
-    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--device", default=torch_device())
     args = ap.parse_args()
 
     out = ensure_dir(args.out)
@@ -72,7 +73,7 @@ def main():
     ds = AlignedFaceDataset(args.data, augmentor=augmentor, train=True)
     log.info("dataset: %d images, %d identities", len(ds), ds.num_classes)
     dl = DataLoader(ds, batch_size=args.batch_size, shuffle=True, num_workers=args.workers,
-                    pin_memory=True, drop_last=True)
+                    pin_memory=args.device.startswith("cuda"), drop_last=True)
 
     model = EmbeddingNet(args.backbone, args.embedding_dim).to(args.device)
     Head = AdaFace if args.head == "adaface" else ArcFace

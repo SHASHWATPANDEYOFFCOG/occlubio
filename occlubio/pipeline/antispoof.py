@@ -21,9 +21,11 @@ class AntiSpoof:
             try:
                 import onnxruntime as ort
 
+                from occlubio.platform_support import onnx_providers
+
                 self.session = ort.InferenceSession(
                     a.onnx_path,
-                    providers=list(getattr(cfg.device, "providers", ["CPUExecutionProvider"])),
+                    providers=onnx_providers(getattr(cfg.device, "providers", ["CPUExecutionProvider"])),
                 )
                 self.input_name = self.session.get_inputs()[0].name
                 log.info("AntiSpoof model loaded: %s", a.onnx_path)

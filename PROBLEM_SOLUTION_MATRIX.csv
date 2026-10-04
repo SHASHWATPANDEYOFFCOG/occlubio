@@ -1,0 +1,25 @@
+Part / Module,Problem it solves,Solution used,Key files
+Face detection,"Find every face in an image/frame, with landmarks, fast enough for video","SCRFD (InsightFace) - one pass gives bounding box + 5 landmarks; ONNX/TensorRT-ready",occlubio/pipeline/face_analyzer.py
+Face alignment,"Faces appear at different angles/scales, hurting recognition","5-point similarity transform (Umeyama) to a canonical 112x112 crop; identical in train and inference",occlubio/pipeline/aligner.py
+Quality gate,"Blurry / dark / tiny / non-faces poison the template and matches","Proxy FIQA: detector score + sharpness + exposure thresholds; low-quality samples skipped (hook for CR-FIQA)",occlubio/pipeline/quality.py
+Occlusion estimate,"Masks/sunglasses/caps degrade recognition silently","Heuristic occlusion estimator tags mask/sunglasses/cap regions so confidence can be interpreted",occlubio/pipeline/occlusion.py
+Tracking,"Same person across frames should be one identity, not many","Lightweight IoU tracker assigns stable track IDs (hook for ByteTrack / DeepStream nvtracker)",occlubio/tracking/tracker.py
+Face recognition (embedding),"Turn a face into a comparable numeric identity","ArcFace (w600k_r50, InsightFace) -> 512-d embedding; occlusion-aware EdgeFace+AdaFace planned",occlubio/pipeline/recognizer.py
+Per-track embedding fusion,"Single-frame embeddings are noisy / unstable","Run heavy recognition once per track on gated frames and average embeddings across the track",occlubio/pipeline/engine.py
+Similarity search (1:N),"Match one face against many enrolled identities, at scale","FAISS cosine IndexFlatIP; sub-ms for up to ~1M identities; swappable for Milvus/Qdrant",occlubio/gallery/faiss_gallery.py
+Analytics / reporting,"Raw per-frame hits are not human-readable","IdentityLog merges appearances over short gaps; clusters unknowns by similarity; emits JSON report",occlubio/analytics/identity_log.py
+Enrollment,"Register a person's face robustly from a few images","Detect largest face -> align -> quality gate -> average accepted samples into one 512-d template",occlubio/service/face_service.py
+Duplicate-face rejection,"Stop one face being registered to multiple accounts","Search new template against gallery; reject (409) if it matches a different user above threshold",occlubio/service/face_service.py
+Video identification job,"Identify all people in an uploaded video without blocking the UI","Async FastAPI BackgroundTask -> per-frame pipeline -> report JSON + annotated MP4 + timing stats",occlubio/api/app.py
+Web platform / UI,"Non-technical users need a browser workflow","FastAPI + Uvicorn serving login + role-aware dashboard; webcam capture, upload, results in-browser",occlubio/api/app.py; web/login.html; web/index.html
+Database / source of truth,"Persist accounts and templates; keep vector store rebuildable","SQLAlchemy + SQLite (Postgres-ready); DB is source of truth, FAISS rebuilt from it on every change",occlubio/db/models.py; occlubio/db/database.py
+Password security,"Never store plaintext passwords","PBKDF2-HMAC-SHA256 with per-user salt; constant-time compare (hmac.compare_digest)",occlubio/service/face_service.py
+Authentication (sessions),"API was open; needed to know who is calling","Bearer-token sessions issued at login/register, stored in a sessions table; resolved per request",occlubio/api/app.py; occlubio/db/models.py
+Role-based access control,"Operators and ordinary people must not have the same powers","Roles user|authority; FastAPI deps current_user / require_authority guard each endpoint (401/403)",occlubio/api/app.py
+Authority registration control,"Anyone could self-grant operator powers","Authority signup gated by a shared access code (OCCLUBIO_AUTHORITY_CODE env var)",occlubio/api/app.py
+Remove participant,"Authority must be able to delete a subject and their biometrics","DELETE /api/users/{id}: removes account, enrollment, sessions, messages; rebuilds FAISS index; cannot self-delete",occlubio/api/app.py
+Pass information (notices),"Authority needs to communicate with participants","Message table; POST /api/messages (direct or broadcast); users read GET /api/me/messages",occlubio/api/app.py; occlubio/db/models.py
+Schema evolution,"Adding role to an existing live DB would break it","Tiny additive migration adds users.role if missing (Alembic in production)",occlubio/db/database.py
+Occlusion-robust recognition (research),"Baseline ArcFace fails under heavy occlusion","Synthetic occlusion augmentation + AdaFace quality-adaptive loss on an EdgeFace backbone; ONNX export plugs into inference",occlubio/data/occlusion_aug.py; occlubio/training/
+Edge deployment,"Run real-time on NVIDIA Jetson cameras","DeepStream / TensorRT config templates; FP16/INT8 path (~8-15 ms/face expected)",deepstream/
+Responsible use,"Biometric system is legally sensitive (EU AI Act, India DPDP)","Documented consent/DPIA, template protection, anti-spoof, bias eval, HTTPS as deployment prerequisites",OCCLUSION_ROBUST_FR_ARCHITECTURE.md; PLATFORM.md

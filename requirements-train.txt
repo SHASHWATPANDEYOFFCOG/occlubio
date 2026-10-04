@@ -1,5 +1,6 @@
 # Training-only deps (Phase 3). Prefer:  pip install -e ".[train]"
 # Install a CUDA-matched torch from https://pytorch.org for your DGX Spark / GPU.
+numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'   # torch 2.2.x (last Intel-Mac build) needs NumPy 1.x
 torch>=2.1
 torchvision>=0.16
 timm>=0.9

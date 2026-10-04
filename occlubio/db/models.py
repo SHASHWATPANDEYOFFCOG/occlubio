@@ -20,7 +20,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(16), default="user", index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     enrollment: Mapped["Enrollment"] = relationship(
         back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
@@ -30,7 +30,7 @@ class Session(Base):
     __tablename__ = "sessions"
     token: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
 class Message(Base):
@@ -39,7 +39,7 @@ class Message(Base):
     sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     recipient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     body: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
 class Enrollment(Base):
@@ -50,7 +50,7 @@ class Enrollment(Base):
     dim: Mapped[int] = mapped_column(Integer, default=512)
     n_images: Mapped[int] = mapped_column(Integer, default=0)
     quality: Mapped[float] = mapped_column(Float, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     user: Mapped["User"] = relationship(back_populates="enrollment")
 
 
@@ -64,9 +64,9 @@ class Job(Base):
     report_path: Mapped[str] = mapped_column(String(512), default="")
     message: Mapped[str] = mapped_column(Text, default="")
     camera: Mapped[str] = mapped_column(String(64), default="main-gate")
-    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     window_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
 class Sighting(Base):
@@ -82,7 +82,7 @@ class Sighting(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     in_video_start: Mapped[str] = mapped_column(String(16), default="")
     in_video_end: Mapped[str] = mapped_column(String(16), default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
 class Alert(Base):
@@ -98,4 +98,4 @@ class Alert(Base):
     seen: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     video_start_s: Mapped[float] = mapped_column(Float, default=0.0)
     video_end_s: Mapped[float] = mapped_column(Float, default=0.0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

@@ -14,8 +14,9 @@ class CustomRecognizer:
     def __init__(self, onnx_path: str, providers: Optional[List[str]] = None, image_size: int = 112):
         import onnxruntime as ort
 
-        providers = providers or ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        self.session = ort.InferenceSession(onnx_path, providers=providers)
+        from occlubio.platform_support import onnx_providers
+
+        self.session = ort.InferenceSession(onnx_path, providers=onnx_providers(providers))
         self.input_name = self.session.get_inputs()[0].name
         self.image_size = image_size
         log.info("CustomRecognizer loaded: %s", onnx_path)

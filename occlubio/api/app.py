@@ -530,7 +530,8 @@ async def identify(background: BackgroundTasks, file: UploadFile = File(...),
     db.refresh(job)
     dest = (UPLOAD_DIR / f"job_{job.id}{_safe_suffix(file.filename)}").as_posix()
     with open(dest, "wb") as out:
-        out.write(await file.read())
+        while chunk := await file.read(1 << 20):
+            out.write(chunk)
     job.input_path = dest
     db.commit()
     background.add_task(_run_identify, job.id, dest, stride, target_emb, target_label)

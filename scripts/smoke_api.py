@@ -1,21 +1,31 @@
 from __future__ import annotations
 
+import argparse
 import os
 import shutil
-import sys
 import tempfile
+import time
+
+ap = argparse.ArgumentParser(description="End-to-end register -> enroll -> identify check.")
+ap.add_argument("--url", default=None,
+                help="test an already-running server (e.g. the packaged app) instead of in-process")
+ap.add_argument("--home", default=None,
+                help="with --url: the server's data dir, to verify where uploads land")
+ap.add_argument("--authority-code", default="smoke-code")
+ap.add_argument("--keep", action="store_true")
+ARGS = ap.parse_args()
 
 HOME = tempfile.mkdtemp(prefix="occlubio-smoke-")
-os.environ["OCCLUBIO_HOME"] = HOME
-os.environ.pop("OCCLUBIO_DB", None)
-os.environ["OCCLUBIO_AUTHORITY_CODE"] = "smoke-code"
+if not ARGS.url:
+    os.environ["OCCLUBIO_HOME"] = HOME
+    os.environ.pop("OCCLUBIO_DB", None)
+    os.environ["OCCLUBIO_AUTHORITY_CODE"] = ARGS.authority_code
 
 import cv2
+import httpx
 import numpy as np
-from fastapi.testclient import TestClient
 from insightface.data import get_image
 
-from occlubio.api.app import app
 from occlubio.pipeline.face_analyzer import FaceAnalyzer
 from occlubio.platform_support import open_video_writer, os_name
 
@@ -43,23 +53,33 @@ def make_clip(img: np.ndarray, path: str, frames: int = 20) -> None:
     writer.release()
 
 
+def open_client():
+    if ARGS.url:
+        return httpx.Client(base_url=ARGS.url, timeout=120.0, verify=False)
+    from fastapi.testclient import TestClient
+
+    from occlubio.api.app import app
+    return TestClient(app)
+
+
 def main() -> None:
-    print(f"platform={os_name()} home={HOME}")
+    print(f"platform={os_name()} target={ARGS.url or 'in-process'} scratch={HOME}")
     img = get_image("t1")
     crop = biggest_face_crop(img)
     clip = os.path.join(HOME, "smoke clip.mp4")
     make_clip(img, clip)
 
-    with TestClient(app) as c:
+    tag = str(int(time.time()))[-6:]
+    with open_client() as c:
         r = c.post("/api/register", json={
-            "email": "admin@example.com", "password": "smoke-pass-1", "full_name": "Smoke Admin",
-            "role": "authority", "username": "smokeadmin", "authority_code": "smoke-code"})
+            "email": f"admin{tag}@example.com", "password": "smoke-pass-1", "full_name": "Smoke Admin",
+            "role": "authority", "username": f"smokeadmin{tag}", "authority_code": ARGS.authority_code})
         check(r.status_code == 200, f"register authority ({r.status_code})")
         auth = {"Authorization": f"Bearer {r.json()['token']}"}
 
         r = c.post("/api/register", json={
-            "email": "student@example.com", "password": "smoke-pass-2", "full_name": "Smoke Student",
-            "role": "user", "roll_number": "SMOKE-001"})
+            "email": f"student{tag}@example.com", "password": "smoke-pass-2", "full_name": "Smoke Student",
+            "role": "user", "roll_number": f"SMOKE-{tag}"})
         check(r.status_code == 200, f"register student ({r.status_code})")
         student_id = r.json()["user_id"]
 
@@ -75,7 +95,12 @@ def main() -> None:
         check(r.status_code == 200, f"submit identify job ({r.status_code} {r.text[:120]})")
         job_id = r.json()["job_id"]
 
-        job = c.get(f"/api/jobs/{job_id}", headers=auth).json()
+        deadline = time.time() + 600
+        while True:
+            job = c.get(f"/api/jobs/{job_id}", headers=auth).json()
+            if job["status"] in ("done", "error") or time.time() > deadline:
+                break
+            time.sleep(1)
         check(job["status"] == "done", f"job finished ({job['status']}: {job.get('message')})")
         report = job["report"]
         check(bool(report["target"]["found"]), "enrolled target found in clip")
@@ -86,8 +111,10 @@ def main() -> None:
         check(r.status_code == 200 and len(r.content) > 0, "annotated video served")
         r = c.get(f"/api/jobs/{job_id}/source", headers=auth)
         check(r.status_code == 200 and len(r.content) > 0, "source clip served")
-        uploads = os.listdir(os.path.join(HOME, "data", "uploads"))
-        check(uploads == [f"job_{job_id}.mp4"], f"upload name sanitised ({uploads})")
+        data_home = HOME if not ARGS.url else ARGS.home
+        if data_home:
+            uploads = os.listdir(os.path.join(data_home, "data", "uploads"))
+            check(f"job_{job_id}.mp4" in uploads, f"upload stored sanitised under {data_home}")
         check(c.get("/api/alerts", headers=auth).status_code == 200, "alerts endpoint")
 
     print("smoke test passed")
@@ -97,5 +124,5 @@ if __name__ == "__main__":
     try:
         main()
     finally:
-        if "--keep" not in sys.argv:
+        if not ARGS.keep:
             shutil.rmtree(HOME, ignore_errors=True)

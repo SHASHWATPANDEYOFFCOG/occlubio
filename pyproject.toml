@@ -42,7 +42,12 @@ report = [
     "markdown>=3.5",
     "xhtml2pdf>=0.2.16",
 ]
+# Desktop shell (native window + app menu) used by the packaged macOS app.
+desktop = ["pywebview>=5.0"]
 dev = ["pytest>=7", "httpx>=0.27"]
+
+[project.scripts]
+occlubio-desktop = "occlubio.desktop:main"
 
 [tool.setuptools.packages.find]
 include = ["occlubio*"]

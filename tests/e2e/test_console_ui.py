@@ -456,7 +456,6 @@ def test_mobile_layout_has_no_horizontal_overflow(env, pw, device):
     page.context.close()
 
 
-@pytest.mark.xfail(strict=True, reason="ISSUE-008: notice textarea keeps an inline 0.92rem font size, so iOS zooms on focus")
 @pytest.mark.parametrize("device", ["iPhone SE", "iPhone 15 Pro Max"])
 def test_phone_inputs_do_not_trigger_zoom(env, pw, device):
     if env["engine"] != "webkit":
@@ -472,21 +471,43 @@ def test_phone_inputs_do_not_trigger_zoom(env, pw, device):
     page.context.close()
 
 
-@pytest.mark.xfail(strict=True, reason="ISSUE-007: several touch targets are smaller than 44x44 pt on phones")
 def test_phone_touch_targets_are_at_least_44pt(env, pw):
     if env["engine"] != "webkit":
         pytest.skip("device emulation checks run on the WebKit engine")
     page = _page(env, **pw.devices["iPhone SE"])
     _login(page, env, "operator.one")
+    small = {}
+    for view in ["overview", "identify", "users", "alerts", "messages", "enroll"]:
+        page.click(".menu-btn")
+        page.wait_for_selector("body.nav-open")
+        page.click(f'.nav a[data-view="{view}"]')
+        page.wait_for_selector(f'section[data-view="{view}"]:not(.hidden)')
+        page.wait_for_timeout(400)
+        found = page.evaluate("""() => [...document.querySelectorAll('button, a, input[type=radio], input[type=checkbox], select')]
+            .filter(e => e.offsetParent !== null && !e.closest('.modal-scrim:not(.open)'))
+            .map(e => {
+                const own = e.getBoundingClientRect();
+                const lab = e.closest('label');
+                const r = lab ? lab.getBoundingClientRect() : own;
+                const w = Math.max(own.width, r.width), h = Math.max(own.height, r.height);
+                return [e.textContent.trim().slice(0, 24) || e.id || e.className || e.type, Math.round(w), Math.round(h)]; })
+            .filter(([, w, h]) => w < 44 || h < 44)""")
+        if found:
+            small[view] = found
     page.click(".menu-btn")
-    _nav(page, "users")
-    page.wait_for_selector("#users_body tr td")
-    small = page.evaluate("""() => [...document.querySelectorAll('button, a, input[type=radio], input[type=checkbox], select')]
-        .filter(e => e.offsetParent !== null)
-        .map(e => { const r = e.getBoundingClientRect(); return [e.textContent.trim().slice(0, 24) || e.id || e.className, Math.round(r.width), Math.round(r.height)]; })
+    page.wait_for_selector("body.nav-open")
+    page.click('.nav a[data-view="alerts"]')
+    page.wait_for_selector(".alertcard button")
+    page.locator(".alertcard button").first.click()
+    page.wait_for_selector("#clip_modal.open")
+    page.wait_for_timeout(600)
+    modal = page.evaluate("""() => [...document.querySelectorAll('#clip_modal button')]
+        .map(e => { const r = e.getBoundingClientRect(); return [e.textContent.trim().slice(0, 24), Math.round(r.width), Math.round(r.height)]; })
         .filter(([, w, h]) => w < 44 || h < 44)""")
+    if modal:
+        small["clip player"] = modal
     print("small touch targets:", small)
-    assert not small
+    assert not small, small
     page.context.close()
 
 

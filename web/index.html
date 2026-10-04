@@ -233,6 +233,15 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
   input,select,textarea{font-size:16px}
 }
 
+@media (pointer:coarse){
+  button, select, .nav a, .logout{min-height:44px}
+  .menu-btn{width:44px; height:44px}
+  .modal-close{width:44px; height:44px}
+  .jumpbar button{min-width:44px}
+  .checklist label, label.muted:has(> input[type=radio]), label.muted:has(> input[type=checkbox]){min-height:44px; min-width:44px}
+  input[type=radio], input[type=checkbox]{width:20px; height:20px}
+}
+
 @media (hover:none){
   button:hover,.stat:hover,.alertcard:hover,.nav a:hover,.nav a:hover .ico{transform:none}
   button:hover{box-shadow:none}
@@ -367,7 +376,7 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
           <div class="checklist" id="m_recips"><span class="muted">Loading…</span></div>
         </div>
         <div class="row" style="margin-top:10px">
-          <textarea id="m_body" rows="3" placeholder="Type the information / notice…" style="width:100%; padding:10px; font-size:.92rem"></textarea>
+          <textarea id="m_body" rows="3" placeholder="Type the information / notice…" style="width:100%; padding:10px"></textarea>
         </div>
         <div class="row" style="margin-top:10px"><button onclick="sendMessage()"><span class="ico" data-ico="send"></span> Send notice</button></div>
         <pre id="m_out" class="hidden"></pre>

@@ -400,29 +400,31 @@ def test_full_name_is_rendered_as_text_not_html(env):
     page.context.close()
 
 
-@pytest.mark.xfail(strict=True, reason="ISSUE-006: sidebar links, login tabs and role cards are not keyboard-focusable")
-def test_navigation_is_keyboard_reachable(env):
-    def tab_walk(page, n=60):
-        seen = []
-        for _ in range(n):
-            page.keyboard.press("Tab")
-            seen.append(page.evaluate("""() => { const e = document.activeElement;
-                return e ? (e.id || e.dataset.view || e.className || e.tagName) : null; }"""))
-        return seen
+def _tab_to(page, predicate_js, limit=60):
+    for _ in range(limit):
+        page.keyboard.press("Tab")
+        if page.evaluate(predicate_js):
+            return True
+    return False
 
-    fresh = _page(env)
-    fresh.goto(env["server"].base + "/login")
-    login_focus = tab_walk(fresh, 25)
-    fresh.context.close()
+
+def test_navigation_is_keyboard_reachable(env):
+    page = _page(env)
+    page.goto(env["server"].base + "/login")
+    assert _tab_to(page, "document.activeElement.id === 'tab_reg'"), "'Create account' tab not reachable with Tab"
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#form_reg:not(.hidden)")
+    assert _tab_to(page, "document.activeElement.id === 'role_auth'"), "Authority role card not reachable with Tab"
+    page.keyboard.press("Space")
+    page.wait_for_selector("#auth_code_wrap:not(.hidden)")
+    page.context.close()
 
     page = _page(env)
     _login(page, env, "operator.one")
-    dash_focus = tab_walk(page)
-    print("login tab order:", login_focus)
-    print("dashboard tab order:", dash_focus)
+    assert _tab_to(page, "document.activeElement.dataset.view === 'users'"), "sidebar 'Subjects' not reachable with Tab"
+    page.keyboard.press("Enter")
+    page.wait_for_selector('section[data-view="users"]:not(.hidden)')
     page.context.close()
-    assert "tab_reg" in login_focus, "the 'Create account' tab cannot be reached with Tab"
-    assert any(v in dash_focus for v in ("users", "alerts", "identify")), "sidebar views cannot be reached with Tab"
 
 
 PHONE_DEVICES = ["iPhone SE", "iPhone 15 Pro Max", "iPad Pro 11 landscape", "iPad (gen 7)"]
@@ -514,3 +516,33 @@ def test_users_page_with_2000_subjects_renders_quickly(env):
     print(f"[{env['engine']}] users page with {have + 2000} rows rendered in {elapsed:.2f}s")
     assert elapsed < 5.0
     page.context.close()
+
+
+def test_accessibility_audit_has_no_violations(env):
+    axe_path = os.environ.get("OCCLUBIO_AXE")
+    if not axe_path or not Path(axe_path).exists():
+        pytest.skip("set OCCLUBIO_AXE to the path of axe-core's axe.min.js")
+    axe = Path(axe_path).read_text(encoding="utf-8")
+    found = {}
+
+    def audit(page, where):
+        page.add_script_tag(content=axe)
+        res = page.evaluate("axe.run(document, {resultTypes: ['violations']})")
+        for v in res["violations"]:
+            found.setdefault(v["id"], set()).add(where)
+
+    page = _page(env)
+    page.goto(env["server"].base + "/login")
+    page.wait_for_timeout(800)
+    audit(page, "login")
+    page.click("#tab_reg")
+    audit(page, "register")
+    page.context.close()
+    page = _page(env)
+    _login(page, env, "operator.one")
+    for view in ["overview", "identify", "users", "alerts", "messages", "enroll"]:
+        _nav(page, view)
+        page.wait_for_timeout(600)
+        audit(page, view)
+    page.context.close()
+    assert not found, {k: sorted(v) for k, v in found.items()}

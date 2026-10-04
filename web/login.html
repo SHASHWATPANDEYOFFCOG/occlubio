@@ -157,6 +157,7 @@ form{animation:formIn .4s var(--ease-out) both}
   button:hover{box-shadow:none}
   button:hover::after{animation:none}
 }
+[data-activate]:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
   .blob{animation:none}
@@ -169,7 +170,7 @@ form{animation:formIn .4s var(--ease-out) both}
   <div class="grain" aria-hidden="true"></div>
   <div class="vignette" aria-hidden="true"></div>
 
-  <div class="card">
+  <main class="card">
     <div class="brand">
       <div class="logo">o</div>
       <div><h1>occlubio</h1><div class="sub" style="margin:0">Occlusion-robust face recognition</div></div>
@@ -177,10 +178,10 @@ form{animation:formIn .4s var(--ease-out) both}
     <p class="eyebrow">Surveillance &amp; identification console</p>
     <p class="sub" style="margin-top:6px">Sign in to continue.</p>
 
-    <div class="tabs">
+    <div class="tabs" role="tablist">
       <span class="tab-ind" aria-hidden="true"></span>
-      <div class="tab active" id="tab_login" onclick="switchTab('login')">Sign in</div>
-      <div class="tab" id="tab_reg" onclick="switchTab('reg')">Create account</div>
+      <div class="tab active" id="tab_login" role="tab" aria-selected="true" tabindex="0" data-activate onclick="switchTab('login')">Sign in</div>
+      <div class="tab" id="tab_reg" role="tab" aria-selected="false" tabindex="0" data-activate onclick="switchTab('reg')">Create account</div>
     </div>
 
     <form id="form_login" onsubmit="doLogin(event)" novalidate>
@@ -198,10 +199,10 @@ form{animation:formIn .4s var(--ease-out) both}
 
     <form id="form_reg" class="hidden" onsubmit="doRegister(event)" novalidate>
       <label>Account type</label>
-      <div class="roles">
-        <div class="role active" id="role_user" onclick="pickRole('user')">
+      <div class="roles" role="radiogroup" aria-label="Account type">
+        <div class="role active" id="role_user" role="radio" aria-checked="true" tabindex="0" data-activate onclick="pickRole('user')">
           Student<small>enroll your own face</small></div>
-        <div class="role" id="role_auth" onclick="pickRole('authority')">
+        <div class="role" id="role_auth" role="radio" aria-checked="false" tabindex="0" data-activate onclick="pickRole('authority')">
           Authority<small>operate surveillance</small></div>
       </div>
 
@@ -253,10 +254,15 @@ form{animation:formIn .4s var(--ease-out) both}
     </form>
 
     <div class="foot"><span class="dot"></span> Biometric system — authorized use only.</div>
-  </div>
+  </main>
 
 <script>
 if (localStorage.getItem('occlubio_session')) location.replace('/');
+
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-activate]')){ e.preventDefault(); t.click(); }
+});
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const USERNAME_RE = /^[A-Za-z0-9_.]{3,32}$/;
@@ -267,6 +273,8 @@ function pickRole(r){
   regRole = r;
   role_user.classList.toggle('active', r === 'user');
   role_auth.classList.toggle('active', r === 'authority');
+  role_user.setAttribute('aria-checked', r === 'user');
+  role_auth.setAttribute('aria-checked', r === 'authority');
   roll_wrap.classList.toggle('hidden', r !== 'user');
   user_wrap.classList.toggle('hidden', r !== 'authority');
   auth_code_wrap.classList.toggle('hidden', r !== 'authority');
@@ -324,6 +332,8 @@ function switchTab(which){
   const login = which === 'login';
   tab_login.classList.toggle('active', login);
   tab_reg.classList.toggle('active', !login);
+  tab_login.setAttribute('aria-selected', login);
+  tab_reg.setAttribute('aria-selected', !login);
   form_login.classList.toggle('hidden', !login);
   form_reg.classList.toggle('hidden', login);
 }

@@ -239,6 +239,8 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
   button:hover::after{animation:none}
 }
 
+[data-activate]:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
+.sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
 }
@@ -322,7 +324,7 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
         <h2>Registered subjects</h2>
         <p class="hint">Everyone on the platform and whether they have a face template in the gallery. Open <b>Activity</b> to see the days a subject crossed the camera.</p>
         <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadUsers()"><span class="ico" data-ico="refresh"></span> Refresh</button></div>
-        <table><thead><tr><th>ID</th><th>Roll / Username</th><th>Name</th><th>Email</th><th>Role</th><th>Enrolled</th><th></th></tr></thead>
+        <table><thead><tr><th>ID</th><th>Roll / Username</th><th>Name</th><th>Email</th><th>Role</th><th>Enrolled</th><th><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="users_body"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
         </table>
       </div>
@@ -486,6 +488,11 @@ function paintIcons(){ document.querySelectorAll('[data-ico]').forEach(el=>{ el.
 const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const S = JSON.parse(localStorage.getItem('occlubio_session') || 'null');
+
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-activate]')){ e.preventDefault(); t.click(); }
+});
 if(!S){ location.replace('/login'); }
 const isAuthority = S?.role === 'authority';
 
@@ -536,7 +543,7 @@ const TITLES = {overview:'Overview', identify:'Find a person in a video', users:
   profile:'My profile', enroll: isAuthority ? 'Enroll subject' : 'Enroll my face'};
 const items = NAV[isAuthority ? 'authority' : 'user'];
 nav.innerHTML = '<span class="nav-ind" id="nav_ind"></span>' + items.map((it,i)=>
-  `<a data-view="${it.v}" class="${i===0?'active':''}" onclick="show('${it.v}')">
+  `<a data-view="${it.v}" class="${i===0?'active':''}" role="link" tabindex="0" data-activate onclick="show('${it.v}')">
      ${svg(it.icon)}<span>${it.label}</span>${it.badge?'<span id="alert_badge" class="navbadge hidden">0</span>':''}
    </a>`).join('');
 

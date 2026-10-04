@@ -597,7 +597,9 @@ function toast(msg, kind){
   setTimeout(()=>{ t.style.transform='translateX(120%)'; setTimeout(()=>t.remove(),400); }, 4000);
 }
 
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const label = u => (u.roll_number || u.username);
+const USERS = {};
 
 async function loadProfile(){
   try{
@@ -624,22 +626,24 @@ async function loadUsers(){
   body.innerHTML = skelRows(7);
   try{
     const users = await (await api('/api/users')).json();
+    users.forEach(u => { USERS[u.id] = u; });
     body.innerHTML = users.map(u => `<tr>
       <td>${u.id}</td>
-      <td>${label(u)}${u.id===S.user_id?' <span class="badge">you</span>':''}</td>
-      <td>${u.full_name||'—'}</td>
-      <td class="muted">${u.email}</td>
+      <td>${esc(label(u))}${u.id===S.user_id?' <span class="badge">you</span>':''}</td>
+      <td>${esc(u.full_name||'—')}</td>
+      <td class="muted">${esc(u.email)}</td>
       <td>${u.role==='authority'?'<span class="badge auth">authority</span>':'<span class="badge">student</span>'}</td>
       <td>${u.enrolled?'<span class="badge yes">yes</span>':'<span class="badge">no</span>'}</td>
       <td class="row" style="gap:6px">
-        <button class="ghost" style="padding:5px 10px;font-size:.82rem" onclick="openActivity(${u.id},'${(label(u)+' — '+(u.full_name||'')).replace(/'/g,"\\'")}')">${svg('activity')} Activity</button>
-        ${u.id===S.user_id ? '' : `<button class="danger" onclick="removeUser(${u.id},'${label(u).replace(/'/g,"\\'")}')">${svg('trash')} Remove</button>`}
+        <button class="ghost" style="padding:5px 10px;font-size:.82rem" onclick="openActivity(${u.id})">${svg('activity')} Activity</button>
+        ${u.id===S.user_id ? '' : `<button class="danger" onclick="removeUser(${u.id})">${svg('trash')} Remove</button>`}
       </td></tr>`).join('')
       || '<tr><td colspan="7" class="muted">No users.</td></tr>';
   }catch(e){ body.innerHTML = '<tr><td colspan="7" class="err">Failed to load.</td></tr>'; }
 }
 
 async function removeUser(id, name){
+  name = name ?? (USERS[id] ? label(USERS[id]) : String(id));
   if(!confirm(`Remove participant "${name}" (id ${id})? This deletes their account and face template.`)) return;
   const res = await api(`/api/users/${id}`, {method:'DELETE'});
   const j = await res.json();
@@ -649,6 +653,7 @@ async function removeUser(id, name){
 
 const fmtDT = s => s ? s.replace('T',' ') : '—';
 async function openActivity(id, name){
+  name = name ?? (USERS[id] ? `${label(USERS[id])} — ${USERS[id].full_name||''}` : String(id));
   act_title.textContent = `Gate activity — ${name}`;
   show('activity');
   act_body.innerHTML = skelRows(7,3);
@@ -668,7 +673,7 @@ async function openActivity(id, name){
     }
     act_body.innerHTML = r.sightings.map(s=>`<tr>
       <td>${(s.entered_at||'').slice(0,10)}</td>
-      <td><span class="badge">${s.camera}</span></td>
+      <td><span class="badge">${esc(s.camera)}</span></td>
       <td>${fmtDT(s.entered_at)}</td>
       <td>${fmtDT(s.exited_at)}</td>
       <td>${s.appearances}</td>
@@ -698,10 +703,10 @@ async function loadAlerts(){
         window._alerts[a.id] = a;
         return `<div class="alertcard">
         <div class="row" style="justify-content:space-between">
-          <b class="err">⚠ ${a.label} — unknown person</b>
+          <b class="err">⚠ ${esc(a.label)} — unknown person</b>
           ${a.seen?'':'<span class="badge" style="background:var(--err);color:#fff">new</span>'}</div>
         <div class="muted" style="font-size:.85rem; margin-top:6px">
-          camera <b style="color:var(--txt)">${a.camera}</b> ·
+          camera <b style="color:var(--txt)">${esc(a.camera)}</b> ·
           present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} (${a.duration_s}s) · job #${a.job_id}</div>
         <div class="row" style="margin-top:10px">
           ${a.has_video
@@ -722,7 +727,7 @@ async function loadRecipients(){
     const parts = users.filter(u=>u.id!==S.user_id);
     m_recips.innerHTML =
       `<label><input type="checkbox" id="m_all" onchange="toggleAll()"> <b>All participants (broadcast)</b></label>` +
-      parts.map(u=>`<label><input type="checkbox" class="m_rcp" value="${u.id}"> ${label(u)} — ${u.full_name||''}</label>`).join('');
+      parts.map(u=>`<label><input type="checkbox" class="m_rcp" value="${u.id}"> ${esc(label(u))} — ${esc(u.full_name||'')}</label>`).join('');
   }catch(e){ m_recips.innerHTML = '<span class="err">Failed to load.</span>'; }
 }
 function toggleAll(){
@@ -749,8 +754,8 @@ async function loadSent(){
     const msgs = await (await api('/api/messages')).json();
     sent_body.innerHTML = msgs.map(m=>`<tr>
       <td class="muted">${m.created_at.replace('T',' ')}</td>
-      <td>${m.recipient==='All participants'?'<span class="badge">broadcast</span>':m.recipient}</td>
-      <td>${m.body.replace(/</g,'&lt;')}</td></tr>`).join('')
+      <td>${m.recipient==='All participants'?'<span class="badge">broadcast</span>':esc(m.recipient)}</td>
+      <td>${esc(m.body)}</td></tr>`).join('')
       || '<tr><td colspan="3" class="muted">No notices sent yet.</td></tr>';
   }catch(e){ sent_body.innerHTML = '<tr><td colspan="3" class="err">Failed to load.</td></tr>'; }
 }
@@ -761,9 +766,9 @@ async function loadNotices(){
     if(!msgs.length){ notices_list.innerHTML = '<p class="muted">No notices yet.</p>'; return; }
     notices_list.innerHTML = msgs.map(m=>`<div style="border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:rgba(8,12,26,.5)">
       <div class="muted" style="font-size:.78rem; margin-bottom:5px">
-        from <b style="color:var(--txt)">${m.sender}</b> · ${m.created_at.replace('T',' ')}
+        from <b style="color:var(--txt)">${esc(m.sender)}</b> · ${m.created_at.replace('T',' ')}
         ${m.recipient==='All participants'?' · <span class="badge">broadcast</span>':''}</div>
-      <div>${m.body.replace(/</g,'&lt;')}</div></div>`).join('');
+      <div>${esc(m.body)}</div></div>`).join('');
   }catch(e){ notices_list.innerHTML = '<p class="err">Failed to load.</p>'; }
 }
 
@@ -772,7 +777,7 @@ async function loadTargets(){
     const users = await (await api('/api/users')).json();
     const enrolled = users.filter(u=>u.role==='user' && u.enrolled);
     t_subject.innerHTML = '<option value="">— pick a subject —</option>' +
-      enrolled.map(u=>`<option value="${u.id}">${label(u)} — ${u.full_name||''}</option>`).join('');
+      enrolled.map(u=>`<option value="${u.id}">${esc(label(u))} — ${esc(u.full_name||'')}</option>`).join('');
   }catch(e){}
 }
 async function loadEnrollTargets(){
@@ -780,7 +785,7 @@ async function loadEnrollTargets(){
     const users = await (await api('/api/users')).json();
     const students = users.filter(u=>u.role==='user');
     e_subject.innerHTML = '<option value="">— pick a subject —</option>' +
-      students.map(u=>`<option value="${u.id}">${label(u)} — ${u.full_name||''}${u.enrolled?' (enrolled)':''}</option>`).join('');
+      students.map(u=>`<option value="${u.id}">${esc(label(u))} — ${esc(u.full_name||'')}${u.enrolled?' (enrolled)':''}</option>`).join('');
   }catch(e){}
 }
 function setTMode(mode){
@@ -823,12 +828,12 @@ async function enroll(){
   const res = await api(`/api/users/${targetId}/enroll`, {method:'POST', body:fd});
   const j = await res.json();
   if(res.ok){
-    e_out.innerHTML = `<span class="ok">Enrolled ${j.username}: accepted ${j.n_accepted}/${j.n_total}, quality ${j.quality}</span>`;
+    e_out.innerHTML = `<span class="ok">Enrolled ${esc(j.username)}: accepted ${j.n_accepted}/${j.n_total}, quality ${j.quality}</span>`;
     captured.length = 0; cam_count.textContent = '0 captured';
     if(!isAuthority) setEnrolled(true);
     toast('Face enrolled ✓', 'ok');
   } else {
-    e_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`; toast('Enrollment failed', 'err');
+    e_out.innerHTML = `<span class="err">${esc(JSON.stringify(j.detail||j))}</span>`; toast('Enrollment failed', 'err');
   }
 }
 
@@ -853,7 +858,7 @@ async function identify(){
   window._t0 = performance.now();
   const res = await api('/api/identify', {method:'POST', body:fd});
   const j = await res.json();
-  if(!res.ok){ v_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`; toast('Search failed', 'err'); return; }
+  if(!res.ok){ v_out.innerHTML = `<span class="err">${esc(JSON.stringify(j.detail||j))}</span>`; toast('Search failed', 'err'); return; }
   v_out.textContent = `Job ${j.job_id} submitted… processing (slow on CPU).`;
   poll(j.job_id);
 }
@@ -861,7 +866,7 @@ async function poll(id){
   const j = await (await api(`/api/jobs/${id}`)).json();
   v_out.textContent = `Job ${id}: ${j.status}`;
   if(j.status === 'done') return renderReport(j);
-  if(j.status === 'error'){ v_out.innerHTML = `<span class="err">error: ${j.message}</span>`; toast('Processing failed: '+j.message, 'err'); return; }
+  if(j.status === 'error'){ v_out.innerHTML = `<span class="err">error: ${esc(j.message)}</span>`; toast('Processing failed: '+j.message, 'err'); return; }
   setTimeout(()=>poll(id), 2000);
 }
 function fmtReal(base, sec){
@@ -907,7 +912,7 @@ function openClip(id){
   if(!a) return;
   clipState = {start:a.video_start_s||0, end:a.video_end_s||0, dur:0};
   clip_title.textContent = `${a.label} — unknown person`;
-  clip_sub.innerHTML = `camera <b style="color:var(--txt)">${a.camera}</b> · present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} · job #${a.job_id}`;
+  clip_sub.innerHTML = `camera <b style="color:var(--txt)">${esc(a.camera)}</b> · present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} · job #${a.job_id}`;
   clip_note.textContent = '';
   clip_band.style.left = clip_band.style.width = '0'; clip_played.style.width = '0'; clip_head.style.left = '0';
   clip_dur.textContent = clipFmt(0); clip_clock.textContent = '0:00 / 0:00';

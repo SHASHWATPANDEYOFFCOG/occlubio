@@ -380,16 +380,23 @@ def test_insecure_context_camera_message(env):
     page.context.close()
 
 
-@pytest.mark.xfail(strict=True, reason="ISSUE-001: stored XSS via full_name in Subjects/recipients lists")
 def test_full_name_is_rendered_as_text_not_html(env):
+    payload = '<img src=x onerror="window.__xss=1">'
     _register_api(env, email="xss@example.com", password=PW, role="user", roll_number="XSS-001",
-                  full_name='<img src=x onerror="window.__xss=1">')
+                  full_name=payload)
     page = _page(env)
     _login(page, env, "operator.one")
+    for view, sel in (("users", "#users_body"), ("messages", "#m_recips"), ("enroll", "#e_subject")):
+        _nav(page, view)
+        page.wait_for_function(f"document.querySelector('{sel}').textContent.includes('XSS-001')")
+        page.wait_for_timeout(300)
+        assert page.evaluate("window.__xss") is None, f"payload executed on {view}"
+    assert payload in page.inner_text("#m_recips")
     _nav(page, "users")
     page.wait_for_selector("#users_body tr td")
-    page.wait_for_timeout(500)
-    assert page.evaluate("window.__xss") is None
+    page.locator("#users_body tr", has_text="XSS-001").locator('button:has-text("Activity")').click()
+    page.wait_for_selector('section[data-view="activity"]:not(.hidden)')
+    assert payload in page.inner_text("#act_title")
     page.context.close()
 
 

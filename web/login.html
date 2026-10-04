@@ -334,6 +334,7 @@ function save(j){
   }));
 }
 
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function detailToText(detail){
   if(!detail) return 'Something went wrong.';
   if(typeof detail === 'string') return detail;
@@ -352,7 +353,7 @@ async function doLogin(e){
     body: JSON.stringify({ username:ident, password:l_pass.value }) });
   const j = await res.json();
   if(res.ok){ save(j); l_msg.innerHTML = '<span class="ok">Welcome back — redirecting…</span>'; location.replace('/'); }
-  else l_msg.innerHTML = `<span class="err">${detailToText(j.detail) || 'Invalid credentials'}</span>`;
+  else l_msg.innerHTML = `<span class="err">${esc(detailToText(j.detail) || 'Invalid credentials')}</span>`;
 }
 
 function validateRegister(){
@@ -387,9 +388,9 @@ async function doRegister(e){
     const map = {email:'r_email', roll_number:'r_roll', username:'r_user'};
     const id = map[d.field];
     if(id){ setHint(id, d.message, 'err'); document.getElementById(id).focus(); }
-    r_msg.innerHTML = `<span class="err">${d.message}</span>`;
+    r_msg.innerHTML = `<span class="err">${esc(d.message)}</span>`;
   } else {
-    r_msg.innerHTML = `<span class="err">${detailToText(d)}</span>`;
+    r_msg.innerHTML = `<span class="err">${esc(detailToText(d))}</span>`;
   }
 }
 

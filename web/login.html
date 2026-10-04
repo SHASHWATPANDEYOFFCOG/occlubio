@@ -2,7 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="theme-color" content="#080b14" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="occlubio" />
+<link rel="manifest" href="/static/manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
 <title>occlubio — Sign in</title>
 <style>
 
@@ -38,8 +47,9 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{ margin:0; min-height:100vh; font-family:var(--font-body); color:var(--txt);
-  background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px;
+body{ margin:0; min-height:100vh; min-height:100dvh; font-family:var(--font-body); color:var(--txt);
+  background:var(--bg); display:flex; align-items:center; justify-content:center;
+  padding:max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   overflow-x:hidden; overflow-y:auto; }
 
 #fx{position:fixed; inset:0; width:100%; height:100%; z-index:0; opacity:.9}
@@ -141,6 +151,14 @@ input.valid{border-color:rgba(34,197,94,.55)}
 form{animation:formIn .4s var(--ease-out) both}
 @keyframes formIn{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
 
+@media (max-width:640px){ input,select{font-size:16px} }
+@media (hover:none){
+  button:hover,.role:hover{transform:none}
+  button:hover{box-shadow:none}
+  button:hover::after{animation:none}
+}
+html.ambient-paused *, html.ambient-paused *::before, html.ambient-paused *::after{animation-play-state:paused !important}
+[data-activate]:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
   .blob{animation:none}
@@ -153,7 +171,7 @@ form{animation:formIn .4s var(--ease-out) both}
   <div class="grain" aria-hidden="true"></div>
   <div class="vignette" aria-hidden="true"></div>
 
-  <div class="card">
+  <main class="card">
     <div class="brand">
       <div class="logo">o</div>
       <div><h1>occlubio</h1><div class="sub" style="margin:0">Occlusion-robust face recognition</div></div>
@@ -161,10 +179,10 @@ form{animation:formIn .4s var(--ease-out) both}
     <p class="eyebrow">Surveillance &amp; identification console</p>
     <p class="sub" style="margin-top:6px">Sign in to continue.</p>
 
-    <div class="tabs">
+    <div class="tabs" role="tablist">
       <span class="tab-ind" aria-hidden="true"></span>
-      <div class="tab active" id="tab_login" onclick="switchTab('login')">Sign in</div>
-      <div class="tab" id="tab_reg" onclick="switchTab('reg')">Create account</div>
+      <div class="tab active" id="tab_login" role="tab" aria-selected="true" tabindex="0" data-activate onclick="switchTab('login')">Sign in</div>
+      <div class="tab" id="tab_reg" role="tab" aria-selected="false" tabindex="0" data-activate onclick="switchTab('reg')">Create account</div>
     </div>
 
     <form id="form_login" onsubmit="doLogin(event)" novalidate>
@@ -182,10 +200,10 @@ form{animation:formIn .4s var(--ease-out) both}
 
     <form id="form_reg" class="hidden" onsubmit="doRegister(event)" novalidate>
       <label>Account type</label>
-      <div class="roles">
-        <div class="role active" id="role_user" onclick="pickRole('user')">
+      <div class="roles" role="radiogroup" aria-label="Account type">
+        <div class="role active" id="role_user" role="radio" aria-checked="true" tabindex="0" data-activate onclick="pickRole('user')">
           Student<small>enroll your own face</small></div>
-        <div class="role" id="role_auth" onclick="pickRole('authority')">
+        <div class="role" id="role_auth" role="radio" aria-checked="false" tabindex="0" data-activate onclick="pickRole('authority')">
           Authority<small>operate surveillance</small></div>
       </div>
 
@@ -237,10 +255,33 @@ form{animation:formIn .4s var(--ease-out) both}
     </form>
 
     <div class="foot"><span class="dot"></span> Biometric system — authorized use only.</div>
-  </div>
+  </main>
 
 <script>
 if (localStorage.getItem('occlubio_session')) location.replace('/');
+
+(function(){
+  const IDLE_MS = window.OCCLUBIO_IDLE_MS || 20000;
+  const root = document.documentElement, subs = [];
+  let timer;
+  window.onAmbient = fn => { subs.push(fn); fn(root.classList.contains('ambient-paused')); };
+  function set(paused){
+    if(root.classList.contains('ambient-paused') === paused) return;
+    root.classList.toggle('ambient-paused', paused);
+    subs.forEach(fn => fn(paused));
+  }
+  function wake(){ set(false); clearTimeout(timer); timer = setTimeout(() => set(true), IDLE_MS); }
+  ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => addEventListener(ev, wake, {passive: true}));
+  addEventListener('focus', wake);
+  addEventListener('blur', () => set(true));
+  document.addEventListener('visibilitychange', () => document.hidden ? set(true) : wake());
+  wake();
+})();
+
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-activate]')){ e.preventDefault(); t.click(); }
+});
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const USERNAME_RE = /^[A-Za-z0-9_.]{3,32}$/;
@@ -251,6 +292,8 @@ function pickRole(r){
   regRole = r;
   role_user.classList.toggle('active', r === 'user');
   role_auth.classList.toggle('active', r === 'authority');
+  role_user.setAttribute('aria-checked', r === 'user');
+  role_auth.setAttribute('aria-checked', r === 'authority');
   roll_wrap.classList.toggle('hidden', r !== 'user');
   user_wrap.classList.toggle('hidden', r !== 'authority');
   auth_code_wrap.classList.toggle('hidden', r !== 'authority');
@@ -308,6 +351,8 @@ function switchTab(which){
   const login = which === 'login';
   tab_login.classList.toggle('active', login);
   tab_reg.classList.toggle('active', !login);
+  tab_login.setAttribute('aria-selected', login);
+  tab_reg.setAttribute('aria-selected', !login);
   form_login.classList.toggle('hidden', !login);
   form_reg.classList.toggle('hidden', login);
 }
@@ -318,6 +363,7 @@ function save(j){
   }));
 }
 
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function detailToText(detail){
   if(!detail) return 'Something went wrong.';
   if(typeof detail === 'string') return detail;
@@ -336,7 +382,7 @@ async function doLogin(e){
     body: JSON.stringify({ username:ident, password:l_pass.value }) });
   const j = await res.json();
   if(res.ok){ save(j); l_msg.innerHTML = '<span class="ok">Welcome back — redirecting…</span>'; location.replace('/'); }
-  else l_msg.innerHTML = `<span class="err">${detailToText(j.detail) || 'Invalid credentials'}</span>`;
+  else l_msg.innerHTML = `<span class="err">${esc(detailToText(j.detail) || 'Invalid credentials')}</span>`;
 }
 
 function validateRegister(){
@@ -371,9 +417,9 @@ async function doRegister(e){
     const map = {email:'r_email', roll_number:'r_roll', username:'r_user'};
     const id = map[d.field];
     if(id){ setHint(id, d.message, 'err'); document.getElementById(id).focus(); }
-    r_msg.innerHTML = `<span class="err">${d.message}</span>`;
+    r_msg.innerHTML = `<span class="err">${esc(d.message)}</span>`;
   } else {
-    r_msg.innerHTML = `<span class="err">${detailToText(d)}</span>`;
+    r_msg.innerHTML = `<span class="err">${esc(detailToText(d))}</span>`;
   }
 }
 
@@ -382,7 +428,7 @@ async function doRegister(e){
   const small = matchMedia('(max-width: 640px)').matches;
   const cv = document.getElementById('fx'); if(!cv) return;
   const ctx = cv.getContext('2d', { alpha:true });
-  let w,h,dpr,pts,raf,running=false;
+  let w,h,dpr,pts,raf,running=false,last=0;
   function size(){
     dpr = Math.min(window.devicePixelRatio||1, 2);
     w = cv.clientWidth; h = cv.clientHeight;
@@ -393,7 +439,9 @@ async function doRegister(e){
     pts = Array.from({length:n}, ()=>({ x:Math.random()*w, y:Math.random()*h,
       vx:(Math.random()-.5)*0.22, vy:(Math.random()-.5)*0.22, r:Math.random()*1.6+0.6 }));
   }
-  function frame(){
+  function frame(ts){
+    if(running && ts && ts - last < 33){ raf = requestAnimationFrame(frame); return; }
+    last = ts || 0;
     ctx.clearRect(0,0,w,h);
     for(const p of pts){
       p.x+=p.vx; p.y+=p.vy;
@@ -408,14 +456,14 @@ async function doRegister(e){
     }
     for(const p of pts){ ctx.fillStyle='rgba(150,180,255,.7)';
       ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.283); ctx.fill(); }
-    raf = requestAnimationFrame(frame);
+    if(running) raf = requestAnimationFrame(frame);
   }
-  function start(){ if(running) return; running=true; frame(); }
+  function start(){ if(running) return; running=true; raf = requestAnimationFrame(frame); }
   function stop(){ running=false; cancelAnimationFrame(raf); }
   size(); seed();
   if(reduce){ frame(); cancelAnimationFrame(raf); }
   else{ start();
-    document.addEventListener('visibilitychange', ()=> document.hidden ? stop() : start());
+    window.onAmbient(paused => paused ? stop() : start());
     let t; window.addEventListener('resize', ()=>{ clearTimeout(t); t=setTimeout(()=>{ size(); seed(); },200); });
   }
 })();

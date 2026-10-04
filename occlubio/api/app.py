@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -12,6 +13,7 @@ import numpy as np
 from fastapi import (BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException,
                      UploadFile)
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session as DBSession
 
 from occlubio.api.schemas import (AlertList, AlertOut, AuthResponse, AvailabilityOut, EnrollResponse,
@@ -19,18 +21,45 @@ from occlubio.api.schemas import (AlertList, AlertOut, AuthResponse, Availabilit
                                   RegisterRequest, SightingOut, UserOut, UserSightings)
 from occlubio.db import SessionLocal, get_db, init_db
 from occlubio.db.models import Alert, Enrollment, Job, Message, Session, Sighting, User
+from occlubio.platform_support import data_path, resource_dir
 from occlubio.service.face_service import (FaceService, decode_image, hash_password,
                                           verify_password)
 from occlubio.utils import ensure_dir, get_logger
 
 log = get_logger("api")
-WEB_DIR = Path(__file__).resolve().parents[2] / "web"
-UPLOAD_DIR = ensure_dir("data/uploads")
-OUTPUT_DIR = ensure_dir("data/outputs")
+WEB_DIR = resource_dir() / "web"
+UPLOAD_DIR = ensure_dir(data_path("data/uploads"))
+OUTPUT_DIR = ensure_dir(data_path("data/outputs"))
 
-AUTHORITY_CODE = os.environ.get("OCCLUBIO_AUTHORITY_CODE", "occlubio-authority")
+AUTHORITY_CODE_FILE = data_path("authority_code.txt")
+
+
+def _load_authority_code() -> str:
+    configured = os.environ.get("OCCLUBIO_AUTHORITY_CODE", "").strip()
+    if configured:
+        return configured
+    if AUTHORITY_CODE_FILE.exists():
+        stored = AUTHORITY_CODE_FILE.read_text(encoding="utf-8").strip()
+        if stored:
+            return stored
+    code = secrets.token_urlsafe(12)
+    AUTHORITY_CODE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    AUTHORITY_CODE_FILE.write_text(code + "\n", encoding="utf-8")
+    try:
+        AUTHORITY_CODE_FILE.chmod(0o600)
+    except OSError:
+        pass
+    return code
+
+
+AUTHORITY_CODE = _load_authority_code()
 
 service: FaceService | None = None
+
+
+def _safe_suffix(filename: Optional[str]) -> str:
+    suffix = Path(filename or "").suffix.lower()
+    return suffix if re.fullmatch(r"\.[a-z0-9]{1,5}", suffix) else ".mp4"
 
 
 def _display(u: User) -> str:
@@ -76,11 +105,17 @@ async def lifespan(app: FastAPI):
     service = FaceService()
     with SessionLocal() as s:
         service.startup(s)
+    if os.environ.get("OCCLUBIO_AUTHORITY_CODE", "").strip():
+        log.info("authority sign-up code: from OCCLUBIO_AUTHORITY_CODE")
+    else:
+        log.info("authority sign-up code: %s (stored in %s)", AUTHORITY_CODE, AUTHORITY_CODE_FILE.resolve())
     log.info("platform ready")
     yield
 
 
 app = FastAPI(title="occlubio face-recognition platform", lifespan=lifespan)
+if (WEB_DIR / "static").is_dir():
+    app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 
 
 def _page(name: str) -> str:
@@ -114,7 +149,7 @@ def register(req: RegisterRequest, db: DBSession = Depends(get_db)):
         raise HTTPException(422, "full name is required")
 
     if role == "authority":
-        if req.authority_code != AUTHORITY_CODE:
+        if not secrets.compare_digest((req.authority_code or "").encode(), AUTHORITY_CODE.encode()):
             raise HTTPException(403, "invalid authority access code")
         username = (req.username or "").strip()
         if not username:
@@ -425,8 +460,8 @@ def _run_identify(job_id: int, video_path: str, stride: int,
         job.status = "running"
         s.commit()
         try:
-            out = f"{OUTPUT_DIR}/job_{job_id}.mp4"
-            rep = f"{OUTPUT_DIR}/job_{job_id}.json"
+            out = (OUTPUT_DIR / f"job_{job_id}.mp4").as_posix()
+            rep = (OUTPUT_DIR / f"job_{job_id}.json").as_posix()
             report = service.identify_video(video_path, out, rep, session=s, stride=stride,
                                             target_embedding=target_embedding,
                                             target_label=target_label)
@@ -446,9 +481,10 @@ def _parse_dt(value: Optional[str]) -> Optional[datetime]:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         raise HTTPException(422, "time must be ISO-8601 (e.g. 2026-07-01T13:00:00)")
+    return parsed.astimezone().replace(tzinfo=None) if parsed.tzinfo else parsed
 
 
 @app.post("/api/identify", response_model=JobCreated)
@@ -460,7 +496,7 @@ async def identify(background: BackgroundTasks, file: UploadFile = File(...),
                    window_end: Optional[str] = Form(None),
                    user: User = Depends(require_authority),
                    db: DBSession = Depends(get_db)):
-    start = _parse_dt(window_start) or datetime.utcnow()
+    start = _parse_dt(window_start) or datetime.now()
     end = _parse_dt(window_end)
     if end and end < start:
         raise HTTPException(422, "window end is before window start")
@@ -492,9 +528,10 @@ async def identify(background: BackgroundTasks, file: UploadFile = File(...),
     db.add(job)
     db.commit()
     db.refresh(job)
-    dest = f"{UPLOAD_DIR}/job_{job.id}_{file.filename}"
+    dest = (UPLOAD_DIR / f"job_{job.id}{_safe_suffix(file.filename)}").as_posix()
     with open(dest, "wb") as out:
-        out.write(await file.read())
+        while chunk := await file.read(1 << 20):
+            out.write(chunk)
     job.input_path = dest
     db.commit()
     background.add_task(_run_identify, job.id, dest, stride, target_emb, target_label)

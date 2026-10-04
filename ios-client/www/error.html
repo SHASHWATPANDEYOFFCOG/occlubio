@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>occlubio — server unreachable</title>
+<script src="server-config.js"></script>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #080b14; color: #cbd5f5;
+         font: 16px -apple-system, system-ui, sans-serif;
+         padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
+                  max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); box-sizing: border-box; }
+  main { max-width: 420px; text-align: center; }
+  h1 { color: #fff; font-size: 22px; }
+  code { color: #93c5fd; word-break: break-all; }
+  button { margin-top: 18px; font: inherit; font-weight: 600; color: #fff; border: 0; border-radius: 12px;
+           padding: 14px 28px; background: linear-gradient(100deg, #3b82f6, #8b5cf6); }
+  ul { text-align: left; line-height: 1.5; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Can't reach the occlubio server</h1>
+  <p>This app shows the console served by your occlubio server at</p>
+  <p><code id="url"></code></p>
+  <ul>
+    <li>Start the server (<code>run_server.sh</code> or <code>run_server.ps1</code>) with <code>--bind 0.0.0.0</code>.</li>
+    <li>Make sure this device is on the same network.</li>
+    <li>For the live camera, serve over HTTPS (see PLATFORM_NOTES.md).</li>
+  </ul>
+  <button id="retry">Try again</button>
+</main>
+<script>
+  const url = window.OCCLUBIO_SERVER_URL || '';
+  document.getElementById('url').textContent = url || '(not configured)';
+  document.getElementById('retry').onclick = () => { if (url) location.href = url; };
+</script>
+</body>
+</html>

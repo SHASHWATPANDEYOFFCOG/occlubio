@@ -3,6 +3,6 @@ numpy>=1.23
 opencv-python>=4.7
 pyyaml>=6.0
 tqdm>=4.65
-insightface>=0.7.3
+insightface>=1.0.1
 onnxruntime>=1.16        # CUDA box: replace with onnxruntime-gpu
 faiss-cpu>=1.7.4         # server/DGX: replace with faiss-gpu

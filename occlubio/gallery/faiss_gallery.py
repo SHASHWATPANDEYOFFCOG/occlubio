@@ -57,7 +57,7 @@ class FaissGallery:
 
     def save(self, path: str | Path) -> None:
         path = ensure_dir(path)
-        self._faiss.write_index(self.index, str(path / "index.faiss"))
+        (path / "index.faiss").write_bytes(self._faiss.serialize_index(self.index).tobytes())
         with open(path / "meta.json", "w", encoding="utf-8") as f:
             json.dump({"dim": self.dim, "labels": self.labels, "meta": self.meta}, f, indent=2)
         log.info("Saved gallery (%d entries) -> %s", len(self.labels), path)
@@ -70,7 +70,7 @@ class FaissGallery:
         with open(path / "meta.json", "r", encoding="utf-8") as f:
             data = json.load(f)
         g = cls(dim=data["dim"])
-        g.index = faiss.read_index(str(path / "index.faiss"))
+        g.index = faiss.deserialize_index(np.frombuffer((path / "index.faiss").read_bytes(), dtype=np.uint8))
         g.labels = data["labels"]
         g.meta = data["meta"]
         log.info("Loaded gallery (%d entries) <- %s", len(g.labels), path)

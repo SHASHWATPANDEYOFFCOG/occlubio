@@ -71,9 +71,15 @@ uvicorn occlubio.api.app:app --port 8001
 # open http://localhost:8001  (API docs at /docs)
 ```
 
+Or use the launcher, which creates the venv, installs dependencies, checks the port and opens
+the browser: `.\run_server.ps1` on Windows, `./run_server.sh` on macOS/Linux (details below).
+
 - **Two roles.** Students sign up with their **roll number** (used as the login username) and
   enroll their own face from photos or a webcam burst. Authorities sign up with a username plus
-  an access code (set `OCCLUBIO_AUTHORITY_CODE` in the environment before starting the server).
+  an access code. Set it with `OCCLUBIO_AUTHORITY_CODE` (or the launcher's `-AuthorityCode` /
+  `--authority-code`); if unset, the server generates a private code on first start, stores it in
+  `authority_code.txt` in its data directory and prints it in the startup log. In the macOS app
+  use **occlubio → Show Authority Sign-up Code**.
 - **Registration is validated end-to-end** — email/password/roll-number format checks, live
   "already taken" availability feedback, and per-field duplicate errors.
 - **Targeted video identification.** An authority uploads a clip and searches it for **one
@@ -87,6 +93,71 @@ uvicorn occlubio.api.app:app --port 8001
   direct/broadcast notices from authorities to participants.
 - The SQLite database (`occlubio.db`) is the source of truth; the FAISS index is rebuilt from it
   on startup and after every enrollment change.
+
+## Platforms: Windows, macOS, iOS
+
+| Platform | What you get | Status in CI |
+|---|---|---|
+| Windows 10/11 (x64) | Full system (server + console) | `windows-latest`: launcher, unit tests, end-to-end smoke |
+| macOS 11+ (Apple Silicon and Intel) | Full system, plus a packaged `occlubio.app` / `.dmg` | `macos-latest` (arm64) + `macos-15-intel`: same as Windows, plus `.app` build and smoke test |
+| iOS / iPadOS 15+ | The console as an app or Home Screen web app; **processing runs on a server** | iOS Simulator build, launched against a live server |
+
+Platform differences, disabled features and the items that need your Apple account are in
+[PLATFORM_NOTES.md](PLATFORM_NOTES.md). The porting rationale is in [PORTING_PLAN.md](PORTING_PLAN.md).
+
+### Windows
+Prerequisites: Python 3.10–3.12 from python.org (the default `python` must not be 3.13+).
+```powershell
+.\run_server.ps1                      # or double-click run_server.bat
+.\run_server.ps1 -Port 8080 -Reload -AuthorityCode "my-secret"
+.\run_server.ps1 -Bind 0.0.0.0 -CertFile lan.pem -KeyFile lan-key.pem   # HTTPS on the LAN for phones
+```
+
+### macOS
+Prerequisites: Python 3.10–3.12 (`brew install python@3.12`) and the Xcode Command Line Tools
+(`xcode-select --install`).
+```bash
+./run_server.sh                       # creates .venv, installs, serves on :8001, opens the browser
+./run_server.sh --port 8080 --reload --authority-code my-secret
+./run_server.sh --bind 0.0.0.0 --cert lan.pem --key lan-key.pem         # HTTPS on the LAN for phones
+```
+**Desktop app.** `pip install -e ".[infer,api,desktop]"` then `occlubio-desktop` opens the console
+in a native window with the standard menu (Cmd+Q to quit). `--browser` uses your browser instead;
+`--headless` serves only.
+
+**Packaging `.app` + `.dmg`.** Run on the Mac whose architecture you are targeting:
+```bash
+packaging/macos/build_macos.sh        # -> dist/occlubio-<ver>-macos-<arm64|x86_64>.dmg
+```
+It builds with PyInstaller, signs (Developer ID if `APPLE_SIGNING_IDENTITY` is set, otherwise
+ad-hoc), runs the end-to-end smoke test against the bundled binary, creates the `.dmg`, and
+notarizes and staples it when the Apple credentials are set (see PLATFORM_NOTES.md). The app
+stores its data in `~/Library/Application Support/occlubio` and downloads the face models
+(~300 MB) on first launch.
+
+### iOS / iPadOS
+The phone runs the console. Detection, recognition and storage stay on a Windows/macOS/Linux
+server (they can't run inside an iOS app; see PLATFORM_NOTES.md).
+
+- **No build needed.** Start the server with `--bind 0.0.0.0` (with HTTPS for the camera), open it
+  in Safari, then *Share → Add to Home Screen*.
+- **Native app (Capacitor).** Prerequisites: a Mac with Xcode 16+ and Node.js 22+.
+  ```bash
+  cd ios-client
+  npm ci
+  OCCLUBIO_SERVER_URL=https://192.168.1.20:8001 npm run sync   # your server's URL
+  npm run open                                                  # Xcode: pick your team, Run
+  npm run build:sim                                             # command-line Simulator build
+  ```
+  Without `OCCLUBIO_SERVER_URL` the app points to `http://localhost:8001`, which suits the
+  Simulator with a server running on the same Mac.
+
+### Tests on any platform
+```bash
+pip install -e ".[infer,api,dev]"
+pytest -q                     # unit tests (no model download)
+python scripts/smoke_api.py   # register -> enroll -> identify end-to-end in a temp data dir
+```
 
 ## What maps to which roadmap phase
 
@@ -118,7 +189,12 @@ occlubio/            # the package
   service/           # face service used by the web platform
   db/                # SQLAlchemy models + SQLite migrations
   api/               # FastAPI app (auth, enroll, identify, alerts, messages)
-web/                 # console UI (login + role-based dashboard)
+  platform_support.py # the only OS-specific code: data dirs, providers, devices, codecs
+  desktop.py         # native-window / headless launcher used by the macOS app
+web/                 # console UI (login + role-based dashboard) + PWA manifest/icons
+packaging/macos/     # PyInstaller spec, entitlements, build_macos.sh (.app + .dmg)
+ios-client/          # Capacitor iOS/iPadOS shell around the console
+run_server.ps1/.bat/.sh  # launchers for Windows and macOS/Linux
 scripts/             # enroll / recognize / identify_video / benchmark / make_demo / build_report
 deepstream/          # sample DeepStream/TensorRT edge-deployment config
 tests/               # smoke tests (no network/model download required)

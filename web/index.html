@@ -2,7 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="theme-color" content="#080b14" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="occlubio" />
+<link rel="manifest" href="/static/manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
 <title>occlubio — Console</title>
 <style>
 
@@ -47,7 +56,7 @@ body::before{content:""; position:fixed; inset:0; z-index:-2; background:
 body::after{content:""; position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.05; mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
-.layout{display:grid; grid-template-columns:252px 1fr; min-height:100vh}
+.layout{display:grid; grid-template-columns:252px 1fr; min-height:100vh; min-height:100dvh}
 
 .side{position:relative; background:linear-gradient(180deg,rgba(14,21,40,.86),rgba(9,13,26,.92));
   backdrop-filter:blur(10px); border-right:1px solid var(--line); padding:20px 14px; display:flex; flex-direction:column; z-index:50}
@@ -159,7 +168,8 @@ tbody tr:hover{background:rgba(124,148,214,.06)}
 .navbadge{background:var(--err); color:#fff; font-size:.7rem; font-weight:700; padding:1px 7px; border-radius:var(--r-full); margin-left:auto; animation:badgePulse 2s var(--ease-io) infinite}
 
 .modal-scrim{position:fixed; inset:0; z-index:100; background:rgba(3,6,16,.72); backdrop-filter:blur(4px);
-  display:flex; align-items:center; justify-content:center; padding:20px; opacity:0; pointer-events:none;
+  display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none;
+  padding:max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   transition:opacity var(--dur-2)}
 .modal-scrim.open{opacity:1; pointer-events:auto}
 .modal{width:100%; max-width:760px; max-height:92vh; overflow:auto; background:linear-gradient(180deg,var(--surface),var(--surface-2));
@@ -217,8 +227,30 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
   body.nav-open .scrim{opacity:1; pointer-events:auto}
   .main{padding:72px 18px 22px}
   .grid{grid-template-columns:repeat(2,1fr)}
+  .mobile-bar{height:calc(56px + env(safe-area-inset-top)); padding:env(safe-area-inset-top) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left))}
+  .side{padding-top:calc(20px + env(safe-area-inset-top)); padding-bottom:calc(20px + env(safe-area-inset-bottom)); padding-left:max(14px, env(safe-area-inset-left))}
+  .main{padding:calc(72px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) calc(22px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left))}
+  input,select,textarea{font-size:16px}
 }
 
+@media (pointer:coarse){
+  button, select, .nav a, .logout{min-height:44px}
+  .menu-btn{width:44px; height:44px}
+  .modal-close{width:44px; height:44px}
+  .jumpbar button{min-width:44px}
+  .checklist label, label.muted:has(> input[type=radio]), label.muted:has(> input[type=checkbox]){min-height:44px; min-width:44px}
+  input[type=radio], input[type=checkbox]{width:20px; height:20px}
+}
+
+@media (hover:none){
+  button:hover,.stat:hover,.alertcard:hover,.nav a:hover,.nav a:hover .ico{transform:none}
+  button:hover{box-shadow:none}
+  button:hover::after{animation:none}
+}
+
+html.ambient-paused *, html.ambient-paused *::before, html.ambient-paused *::after{animation-play-state:paused !important}
+[data-activate]:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
+.sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
 }
@@ -302,7 +334,7 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
         <h2>Registered subjects</h2>
         <p class="hint">Everyone on the platform and whether they have a face template in the gallery. Open <b>Activity</b> to see the days a subject crossed the camera.</p>
         <div class="row" style="margin-bottom:12px"><button class="ghost" onclick="loadUsers()"><span class="ico" data-ico="refresh"></span> Refresh</button></div>
-        <table><thead><tr><th>ID</th><th>Roll / Username</th><th>Name</th><th>Email</th><th>Role</th><th>Enrolled</th><th></th></tr></thead>
+        <table><thead><tr><th>ID</th><th>Roll / Username</th><th>Name</th><th>Email</th><th>Role</th><th>Enrolled</th><th><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="users_body"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
         </table>
       </div>
@@ -345,7 +377,7 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
           <div class="checklist" id="m_recips"><span class="muted">Loading…</span></div>
         </div>
         <div class="row" style="margin-top:10px">
-          <textarea id="m_body" rows="3" placeholder="Type the information / notice…" style="width:100%; padding:10px; font-size:.92rem"></textarea>
+          <textarea id="m_body" rows="3" placeholder="Type the information / notice…" style="width:100%; padding:10px"></textarea>
         </div>
         <div class="row" style="margin-top:10px"><button onclick="sendMessage()"><span class="ico" data-ico="send"></span> Send notice</button></div>
         <pre id="m_out" class="hidden"></pre>
@@ -466,6 +498,29 @@ function paintIcons(){ document.querySelectorAll('[data-ico]').forEach(el=>{ el.
 const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const S = JSON.parse(localStorage.getItem('occlubio_session') || 'null');
+
+(function(){
+  const IDLE_MS = window.OCCLUBIO_IDLE_MS || 20000;
+  const root = document.documentElement, subs = [];
+  let timer;
+  window.onAmbient = fn => { subs.push(fn); fn(root.classList.contains('ambient-paused')); };
+  function set(paused){
+    if(root.classList.contains('ambient-paused') === paused) return;
+    root.classList.toggle('ambient-paused', paused);
+    subs.forEach(fn => fn(paused));
+  }
+  function wake(){ set(false); clearTimeout(timer); timer = setTimeout(() => set(true), IDLE_MS); }
+  ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => addEventListener(ev, wake, {passive: true}));
+  addEventListener('focus', wake);
+  addEventListener('blur', () => set(true));
+  document.addEventListener('visibilitychange', () => document.hidden ? set(true) : wake());
+  wake();
+})();
+
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-activate]')){ e.preventDefault(); t.click(); }
+});
 if(!S){ location.replace('/login'); }
 const isAuthority = S?.role === 'authority';
 
@@ -516,7 +571,7 @@ const TITLES = {overview:'Overview', identify:'Find a person in a video', users:
   profile:'My profile', enroll: isAuthority ? 'Enroll subject' : 'Enroll my face'};
 const items = NAV[isAuthority ? 'authority' : 'user'];
 nav.innerHTML = '<span class="nav-ind" id="nav_ind"></span>' + items.map((it,i)=>
-  `<a data-view="${it.v}" class="${i===0?'active':''}" onclick="show('${it.v}')">
+  `<a data-view="${it.v}" class="${i===0?'active':''}" role="link" tabindex="0" data-activate onclick="show('${it.v}')">
      ${svg(it.icon)}<span>${it.label}</span>${it.badge?'<span id="alert_badge" class="navbadge hidden">0</span>':''}
    </a>`).join('');
 
@@ -571,13 +626,15 @@ function toast(msg, kind){
   const bg = kind==='err' ? '#ef4444' : kind==='ok' ? '#22c55e' : '#3b82f6';
   const t = document.createElement('div');
   t.textContent = msg;
-  t.style.cssText = `position:fixed;top:16px;right:16px;z-index:9999;padding:12px 16px;border-radius:12px;color:#fff;font-size:.92rem;box-shadow:0 12px 30px rgba(0,0,0,.5);background:${bg};max-width:360px;transform:translateX(120%);transition:transform .4s cubic-bezier(.16,1,.3,1)`;
+  t.style.cssText = `position:fixed;top:calc(16px + env(safe-area-inset-top));right:max(16px, env(safe-area-inset-right));z-index:9999;padding:12px 16px;border-radius:12px;color:#fff;font-size:.92rem;box-shadow:0 12px 30px rgba(0,0,0,.5);background:${bg};max-width:360px;transform:translateX(120%);transition:transform .4s cubic-bezier(.16,1,.3,1)`;
   document.body.appendChild(t);
   requestAnimationFrame(()=>{ t.style.transform='translateX(0)'; });
   setTimeout(()=>{ t.style.transform='translateX(120%)'; setTimeout(()=>t.remove(),400); }, 4000);
 }
 
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const label = u => (u.roll_number || u.username);
+const USERS = {};
 
 async function loadProfile(){
   try{
@@ -604,22 +661,24 @@ async function loadUsers(){
   body.innerHTML = skelRows(7);
   try{
     const users = await (await api('/api/users')).json();
+    users.forEach(u => { USERS[u.id] = u; });
     body.innerHTML = users.map(u => `<tr>
       <td>${u.id}</td>
-      <td>${label(u)}${u.id===S.user_id?' <span class="badge">you</span>':''}</td>
-      <td>${u.full_name||'—'}</td>
-      <td class="muted">${u.email}</td>
+      <td>${esc(label(u))}${u.id===S.user_id?' <span class="badge">you</span>':''}</td>
+      <td>${esc(u.full_name||'—')}</td>
+      <td class="muted">${esc(u.email)}</td>
       <td>${u.role==='authority'?'<span class="badge auth">authority</span>':'<span class="badge">student</span>'}</td>
       <td>${u.enrolled?'<span class="badge yes">yes</span>':'<span class="badge">no</span>'}</td>
       <td class="row" style="gap:6px">
-        <button class="ghost" style="padding:5px 10px;font-size:.82rem" onclick="openActivity(${u.id},'${(label(u)+' — '+(u.full_name||'')).replace(/'/g,"\\'")}')">${svg('activity')} Activity</button>
-        ${u.id===S.user_id ? '' : `<button class="danger" onclick="removeUser(${u.id},'${label(u).replace(/'/g,"\\'")}')">${svg('trash')} Remove</button>`}
+        <button class="ghost" style="padding:5px 10px;font-size:.82rem" onclick="openActivity(${u.id})">${svg('activity')} Activity</button>
+        ${u.id===S.user_id ? '' : `<button class="danger" onclick="removeUser(${u.id})">${svg('trash')} Remove</button>`}
       </td></tr>`).join('')
       || '<tr><td colspan="7" class="muted">No users.</td></tr>';
   }catch(e){ body.innerHTML = '<tr><td colspan="7" class="err">Failed to load.</td></tr>'; }
 }
 
 async function removeUser(id, name){
+  name = name ?? (USERS[id] ? label(USERS[id]) : String(id));
   if(!confirm(`Remove participant "${name}" (id ${id})? This deletes their account and face template.`)) return;
   const res = await api(`/api/users/${id}`, {method:'DELETE'});
   const j = await res.json();
@@ -629,6 +688,7 @@ async function removeUser(id, name){
 
 const fmtDT = s => s ? s.replace('T',' ') : '—';
 async function openActivity(id, name){
+  name = name ?? (USERS[id] ? `${label(USERS[id])} — ${USERS[id].full_name||''}` : String(id));
   act_title.textContent = `Gate activity — ${name}`;
   show('activity');
   act_body.innerHTML = skelRows(7,3);
@@ -648,7 +708,7 @@ async function openActivity(id, name){
     }
     act_body.innerHTML = r.sightings.map(s=>`<tr>
       <td>${(s.entered_at||'').slice(0,10)}</td>
-      <td><span class="badge">${s.camera}</span></td>
+      <td><span class="badge">${esc(s.camera)}</span></td>
       <td>${fmtDT(s.entered_at)}</td>
       <td>${fmtDT(s.exited_at)}</td>
       <td>${s.appearances}</td>
@@ -678,10 +738,10 @@ async function loadAlerts(){
         window._alerts[a.id] = a;
         return `<div class="alertcard">
         <div class="row" style="justify-content:space-between">
-          <b class="err">⚠ ${a.label} — unknown person</b>
+          <b class="err">⚠ ${esc(a.label)} — unknown person</b>
           ${a.seen?'':'<span class="badge" style="background:var(--err);color:#fff">new</span>'}</div>
         <div class="muted" style="font-size:.85rem; margin-top:6px">
-          camera <b style="color:var(--txt)">${a.camera}</b> ·
+          camera <b style="color:var(--txt)">${esc(a.camera)}</b> ·
           present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} (${a.duration_s}s) · job #${a.job_id}</div>
         <div class="row" style="margin-top:10px">
           ${a.has_video
@@ -702,7 +762,7 @@ async function loadRecipients(){
     const parts = users.filter(u=>u.id!==S.user_id);
     m_recips.innerHTML =
       `<label><input type="checkbox" id="m_all" onchange="toggleAll()"> <b>All participants (broadcast)</b></label>` +
-      parts.map(u=>`<label><input type="checkbox" class="m_rcp" value="${u.id}"> ${label(u)} — ${u.full_name||''}</label>`).join('');
+      parts.map(u=>`<label><input type="checkbox" class="m_rcp" value="${u.id}"> ${esc(label(u))} — ${esc(u.full_name||'')}</label>`).join('');
   }catch(e){ m_recips.innerHTML = '<span class="err">Failed to load.</span>'; }
 }
 function toggleAll(){
@@ -729,8 +789,8 @@ async function loadSent(){
     const msgs = await (await api('/api/messages')).json();
     sent_body.innerHTML = msgs.map(m=>`<tr>
       <td class="muted">${m.created_at.replace('T',' ')}</td>
-      <td>${m.recipient==='All participants'?'<span class="badge">broadcast</span>':m.recipient}</td>
-      <td>${m.body.replace(/</g,'&lt;')}</td></tr>`).join('')
+      <td>${m.recipient==='All participants'?'<span class="badge">broadcast</span>':esc(m.recipient)}</td>
+      <td>${esc(m.body)}</td></tr>`).join('')
       || '<tr><td colspan="3" class="muted">No notices sent yet.</td></tr>';
   }catch(e){ sent_body.innerHTML = '<tr><td colspan="3" class="err">Failed to load.</td></tr>'; }
 }
@@ -741,9 +801,9 @@ async function loadNotices(){
     if(!msgs.length){ notices_list.innerHTML = '<p class="muted">No notices yet.</p>'; return; }
     notices_list.innerHTML = msgs.map(m=>`<div style="border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:rgba(8,12,26,.5)">
       <div class="muted" style="font-size:.78rem; margin-bottom:5px">
-        from <b style="color:var(--txt)">${m.sender}</b> · ${m.created_at.replace('T',' ')}
+        from <b style="color:var(--txt)">${esc(m.sender)}</b> · ${m.created_at.replace('T',' ')}
         ${m.recipient==='All participants'?' · <span class="badge">broadcast</span>':''}</div>
-      <div>${m.body.replace(/</g,'&lt;')}</div></div>`).join('');
+      <div>${esc(m.body)}</div></div>`).join('');
   }catch(e){ notices_list.innerHTML = '<p class="err">Failed to load.</p>'; }
 }
 
@@ -752,7 +812,7 @@ async function loadTargets(){
     const users = await (await api('/api/users')).json();
     const enrolled = users.filter(u=>u.role==='user' && u.enrolled);
     t_subject.innerHTML = '<option value="">— pick a subject —</option>' +
-      enrolled.map(u=>`<option value="${u.id}">${label(u)} — ${u.full_name||''}</option>`).join('');
+      enrolled.map(u=>`<option value="${u.id}">${esc(label(u))} — ${esc(u.full_name||'')}</option>`).join('');
   }catch(e){}
 }
 async function loadEnrollTargets(){
@@ -760,7 +820,7 @@ async function loadEnrollTargets(){
     const users = await (await api('/api/users')).json();
     const students = users.filter(u=>u.role==='user');
     e_subject.innerHTML = '<option value="">— pick a subject —</option>' +
-      students.map(u=>`<option value="${u.id}">${label(u)} — ${u.full_name||''}${u.enrolled?' (enrolled)':''}</option>`).join('');
+      students.map(u=>`<option value="${u.id}">${esc(label(u))} — ${esc(u.full_name||'')}${u.enrolled?' (enrolled)':''}</option>`).join('');
   }catch(e){}
 }
 function setTMode(mode){
@@ -771,6 +831,12 @@ function setTMode(mode){
 const captured = [];
 let stream;
 async function startCam(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    toast(window.isSecureContext
+      ? 'This browser does not allow camera access — add photos instead.'
+      : 'Live camera needs HTTPS when the console is opened from another device. Use Photos instead — on a phone it can take a picture.', 'err');
+    return;
+  }
   try{ stream = await navigator.mediaDevices.getUserMedia({video:true}); cam.classList.remove('hidden'); cam.srcObject = stream; }
   catch(e){ toast('Camera unavailable: '+e.message, 'err'); }
 }
@@ -797,12 +863,12 @@ async function enroll(){
   const res = await api(`/api/users/${targetId}/enroll`, {method:'POST', body:fd});
   const j = await res.json();
   if(res.ok){
-    e_out.innerHTML = `<span class="ok">Enrolled ${j.username}: accepted ${j.n_accepted}/${j.n_total}, quality ${j.quality}</span>`;
+    e_out.innerHTML = `<span class="ok">Enrolled ${esc(j.username)}: accepted ${j.n_accepted}/${j.n_total}, quality ${j.quality}</span>`;
     captured.length = 0; cam_count.textContent = '0 captured';
     if(!isAuthority) setEnrolled(true);
     toast('Face enrolled ✓', 'ok');
   } else {
-    e_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`; toast('Enrollment failed', 'err');
+    e_out.innerHTML = `<span class="err">${esc(JSON.stringify(j.detail||j))}</span>`; toast('Enrollment failed', 'err');
   }
 }
 
@@ -827,7 +893,7 @@ async function identify(){
   window._t0 = performance.now();
   const res = await api('/api/identify', {method:'POST', body:fd});
   const j = await res.json();
-  if(!res.ok){ v_out.innerHTML = `<span class="err">${JSON.stringify(j.detail||j)}</span>`; toast('Search failed', 'err'); return; }
+  if(!res.ok){ v_out.innerHTML = `<span class="err">${esc(JSON.stringify(j.detail||j))}</span>`; toast('Search failed', 'err'); return; }
   v_out.textContent = `Job ${j.job_id} submitted… processing (slow on CPU).`;
   poll(j.job_id);
 }
@@ -835,7 +901,7 @@ async function poll(id){
   const j = await (await api(`/api/jobs/${id}`)).json();
   v_out.textContent = `Job ${id}: ${j.status}`;
   if(j.status === 'done') return renderReport(j);
-  if(j.status === 'error'){ v_out.innerHTML = `<span class="err">error: ${j.message}</span>`; toast('Processing failed: '+j.message, 'err'); return; }
+  if(j.status === 'error'){ v_out.innerHTML = `<span class="err">error: ${esc(j.message)}</span>`; toast('Processing failed: '+j.message, 'err'); return; }
   setTimeout(()=>poll(id), 2000);
 }
 function fmtReal(base, sec){
@@ -863,7 +929,11 @@ function renderReport(j){
   }
   const ua = r.summary?.unknown_alerts ?? 0;
   html += `<p>Unknown people flagged as alerts: <b>${ua}</b>${ua?` — see <a onclick="show('alerts')" style="cursor:pointer">Alerts</a>`:''}.</p>`;
-  if(j.output_video) html += `<p><a href="${j.output_video}?token=${encodeURIComponent(S.token)}" download>⬇ Download annotated video (.mp4)</a> — open in <b>VLC</b> (browsers can't preview mp4v).</p>`;
+  if(j.output_video){
+    const vurl = `${j.output_video}?token=${encodeURIComponent(S.token)}`;
+    if(r.processing?.browser_playable) html += `<video src="${vurl}" controls playsinline preload="metadata" style="width:100%;max-width:720px;border-radius:12px"></video>`;
+    html += `<p><a href="${vurl}" download>⬇ Download annotated video (.mp4)</a>${r.processing?.browser_playable ? '' : ` — open in <b>VLC</b> (browsers can't preview mp4v).`}</p>`;
+  }
   v_result.innerHTML = html;
   refreshAlertBadge();
 }
@@ -877,7 +947,7 @@ function openClip(id){
   if(!a) return;
   clipState = {start:a.video_start_s||0, end:a.video_end_s||0, dur:0};
   clip_title.textContent = `${a.label} — unknown person`;
-  clip_sub.innerHTML = `camera <b style="color:var(--txt)">${a.camera}</b> · present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} · job #${a.job_id}`;
+  clip_sub.innerHTML = `camera <b style="color:var(--txt)">${esc(a.camera)}</b> · present ${fmtDT(a.entered_at)} → ${fmtDT(a.exited_at)} · job #${a.job_id}`;
   clip_note.textContent = '';
   clip_band.style.left = clip_band.style.width = '0'; clip_played.style.width = '0'; clip_head.style.left = '0';
   clip_dur.textContent = clipFmt(0); clip_clock.textContent = '0:00 / 0:00';

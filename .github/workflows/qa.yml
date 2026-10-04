@@ -1,0 +1,362 @@
+name: QA (extended)
+
+# Deep platform checks that need real macOS / iOS Simulator runners. Evidence (screenshots,
+# console logs, timings) is uploaded as artifacts and summarised in the job summary.
+# Steps record outcomes instead of stopping at the first failure; the summary is the result.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["feature/cross-platform", "qa/**", "fix/**"]
+    paths: [".github/workflows/qa.yml", "tests/e2e/**"]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  macos-app:
+    name: macOS app QA (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-latest, arch: arm64 }
+          - { runner: macos-15-intel, arch: x86_64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - uses: actions/cache@v4
+        with: { path: ~/.insightface, key: insightface-buffalo_l-v1 }
+
+      - name: Build .app/.dmg (timed)
+        run: |
+          mkdir -p qa
+          T0=$(date +%s)
+          packaging/macos/build_macos.sh --skip-smoke --python "python${PYTHON_VERSION}" > qa/build.log 2>&1 || { tail -50 qa/build.log; exit 1; }
+          echo "build_seconds=$(( $(date +%s) - T0 ))" >> qa/results.txt
+          echo "pyinstaller_warnings=$(grep -c 'WARNING' qa/build.log)" >> qa/results.txt
+          grep 'WARNING' qa/build.log | grep -vE 'pysqlite2|MySQLdb|psycopg2|pycparser|jinja2' > qa/build-warnings.txt || true
+          DMG=$(ls dist/*.dmg); echo "dmg=$DMG size_mb=$(du -m "$DMG" | cut -f1)" >> qa/results.txt
+          echo "app_size_mb=$(du -sm dist/macos-*/occlubio.app | cut -f1)" >> qa/results.txt
+
+      - name: Install from .dmg into /Applications, verify signature
+        run: |
+          DMG=$(ls dist/*.dmg)
+          hdiutil attach "$DMG" -mountpoint /Volumes/occqa -nobrowse -quiet
+          rm -rf /Applications/occlubio.app && cp -R /Volumes/occqa/occlubio.app /Applications/
+          hdiutil detach /Volumes/occqa -quiet
+          codesign --verify --deep --strict --verbose=2 /Applications/occlubio.app > qa/codesign.txt 2>&1 && echo "codesign_verify=pass" >> qa/results.txt || echo "codesign_verify=FAIL" >> qa/results.txt
+          spctl --assess --type execute -vv /Applications/occlubio.app > qa/spctl.txt 2>&1 && echo "spctl=accepted" >> qa/results.txt || echo "spctl=rejected ($(head -1 qa/spctl.txt))" >> qa/results.txt
+          lipo -archs /Applications/occlubio.app/Contents/MacOS/occlubio >> qa/results.txt
+          /usr/libexec/PlistBuddy -c Print /Applications/occlubio.app/Contents/Info.plist > qa/Info.plist.txt
+
+      - name: GUI launch from /Applications (first run), resources, data location
+        run: |
+          T0=$(date +%s)
+          open -a /Applications/occlubio.app
+          ok=0; for i in $(seq 1 600); do curl -fs -o /dev/null http://127.0.0.1:8001/login && { ok=1; break; }; sleep 1; done
+          echo "gui_launch_serves_console=$ok startup_seconds=$(( $(date +%s) - T0 ))" >> qa/results.txt
+          sleep 8
+          screencapture -x qa/mac-window-first-run.png || true
+          PID=$(pgrep -f 'occlubio.app/Contents/MacOS/occlubio' | head -1)
+          echo "rss_mb_after_start=$(( $(ps -o rss= -p $PID) / 1024 ))" >> qa/results.txt
+          sleep 20
+          echo "idle_cpu_percent=$(ps -o %cpu= -p $PID | tr -d ' ')" >> qa/results.txt
+          ls -la "$HOME/Library/Application Support/occlubio" > qa/data-dir.txt 2>&1 || true
+          test -f "$HOME/Library/Application Support/occlubio/occlubio.db" && echo "db_in_app_support=yes" >> qa/results.txt || echo "db_in_app_support=NO" >> qa/results.txt
+          test -f "$HOME/Library/Logs/occlubio/occlubio.log" && echo "log_in_library_logs=yes" >> qa/results.txt || echo "log_in_library_logs=NO" >> qa/results.txt
+          cp "$HOME/Library/Logs/occlubio/occlubio.log" qa/app.log 2>/dev/null || true
+          echo "bundle_missing_file_errors=$(grep -c 'File not found' qa/app.log || true)" >> qa/results.txt
+
+      - name: Authority code inside the packaged app (public default rejected, generated code works)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+            -d '{"email":"x@example.com","password":"qa-password-1","full_name":"Old Default","role":"authority","username":"olddefault","authority_code":"occlubio-authority"}' \
+            http://127.0.0.1:8001/api/register)
+          echo "public_default_code_http=$code (expect 403)" >> qa/results.txt
+          CODE_FILE="$HOME/Library/Application Support/occlubio/authority_code.txt"
+          test -f "$CODE_FILE" && echo "authority_code_file=yes perms=$(stat -f %Lp "$CODE_FILE")" >> qa/results.txt || echo "authority_code_file=NO" >> qa/results.txt
+          GEN=$(tr -d '\n' < "$CODE_FILE")
+          python3 -c 'import json,sys; print(json.dumps({"email":"op@example.com","password":"qa-password-1","full_name":"QA Op","role":"authority","username":"qaop","authority_code":sys.argv[1]}))' "$GEN" > qa/reg-body.json
+          code=$(curl -s -o qa/register.json -w '%{http_code}' -H 'Content-Type: application/json' \
+            --data @qa/reg-body.json http://127.0.0.1:8001/api/register)
+          echo "generated_code_register_http=$code (expect 200)" >> qa/results.txt
+
+      - name: App menu, window, Cmd+Q
+        run: |
+          osascript -e 'tell application "System Events" to get name of every menu bar item of menu bar 1 of process "occlubio"' > qa/menus.txt 2>&1 || echo "menu introspection unavailable (accessibility)" >> qa/menus.txt
+          osascript -e 'tell application "System Events" to get name of every menu item of menu 1 of menu bar item 2 of menu bar 1 of process "occlubio"' >> qa/menus.txt 2>&1 || true
+          osascript -e 'tell application "System Events" to get name of every menu item of menu 1 of menu bar item 3 of menu bar 1 of process "occlubio"' >> qa/menus.txt 2>&1 || true
+          osascript -e 'tell application "System Events" to get name of every menu item of menu 1 of menu bar item "File" of menu bar 1 of process "occlubio"' >> qa/menus.txt 2>&1 || true
+          osascript -e 'tell application "occlubio" to activate' -e 'delay 1' -e 'tell application "System Events" to keystroke "q" using command down' > qa/cmdq.txt 2>&1 || true
+          gone=0; for i in $(seq 1 20); do pgrep -f 'occlubio.app/Contents/MacOS/occlubio' >/dev/null || { gone=1; break; }; sleep 1; done
+          echo "cmd_q_keystroke_quits=$gone" >> qa/results.txt
+          if [ "$gone" = 0 ]; then
+            osascript -e 'quit app "occlubio"' || true
+            for i in $(seq 1 20); do pgrep -f 'occlubio.app/Contents/MacOS/occlubio' >/dev/null || { gone=1; break; }; sleep 1; done
+            echo "quit_apple_event_quits=$gone" >> qa/results.txt
+          fi
+          curl -fs -o /dev/null http://127.0.0.1:8001/login && echo "server_stopped_after_quit=NO" >> qa/results.txt || echo "server_stopped_after_quit=yes" >> qa/results.txt
+          pkill -f 'occlubio.app/Contents/MacOS/occlubio' || true
+
+      - name: Relaunch, data persists, close-window behaviour
+        run: |
+          open -a /Applications/occlubio.app
+          for i in $(seq 1 300); do curl -fs -o /dev/null http://127.0.0.1:8001/login && break; sleep 1; done
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"username":"qaop","password":"qa-password-1"}' http://127.0.0.1:8001/api/login)
+          echo "login_after_relaunch_http=$code" >> qa/results.txt
+          sleep 3; screencapture -x qa/mac-window-relaunch.png || true
+          osascript -e 'tell application "System Events" to tell process "occlubio" to click button 1 of window 1' > qa/close-window.txt 2>&1 || true
+          gone=0; for i in $(seq 1 15); do pgrep -f 'occlubio.app/Contents/MacOS/occlubio' >/dev/null || { gone=1; break; }; sleep 1; done
+          echo "closing_window_quits_app=$gone ($(cat qa/close-window.txt | head -1))" >> qa/results.txt
+          pkill -f 'occlubio.app/Contents/MacOS/occlubio' || true
+
+      - name: Training extra on this arch
+        run: |
+          python -m venv /tmp/trainvenv
+          /tmp/trainvenv/bin/pip install -q -e ".[train,dev]" > qa/train-install.log 2>&1 && echo "train_extra_install=ok" >> qa/results.txt || echo "train_extra_install=FAIL" >> qa/results.txt
+          /tmp/trainvenv/bin/python -c "import torch, numpy; print('torch', torch.__version__, 'numpy', numpy.__version__); torch.from_numpy(numpy.zeros(3)); print('mps', torch.backends.mps.is_available())" > qa/train-check.txt 2>&1 && echo "torch_numpy_interop=ok ($(head -1 qa/train-check.txt))" >> qa/results.txt || echo "torch_numpy_interop=FAIL ($(grep -m1 -iE 'error|numpy' qa/train-check.txt))" >> qa/results.txt
+          /tmp/trainvenv/bin/python -m pytest -q tests/test_smoke.py tests/test_training_env.py -k "adaface or numpy" > qa/train-test.txt 2>&1; echo "adaface_test=$(tail -1 qa/train-test.txt)" >> qa/results.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## macOS ${{ matrix.arch }}" >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/    /' qa/results.txt >> "$GITHUB_STEP_SUMMARY" || true
+          cat qa/results.txt || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-macos-${{ matrix.arch }}
+          path: |
+            qa/
+            dist/*.dmg
+
+  rosetta:
+    name: x86_64 app under Rosetta on Apple Silicon
+    needs: macos-app
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - uses: actions/cache@v4
+        with: { path: ~/.insightface, key: insightface-buffalo_l-v1 }
+      - uses: actions/download-artifact@v4
+        with: { name: qa-macos-x86_64, path: intel }
+      - name: Run the Intel build under Rosetta and smoke-test it
+        run: |
+          mkdir -p qa
+          DMG=$(ls intel/dist/*.dmg)
+          hdiutil attach "$DMG" -mountpoint /Volumes/occx86 -nobrowse -quiet
+          arch -x86_64 /usr/bin/true && echo "rosetta=available" >> qa/results.txt || { softwareupdate --install-rosetta --agree-to-license; echo "rosetta=installed" >> qa/results.txt; }
+          H=$(mktemp -d)
+          OCCLUBIO_HOME="$H" OCCLUBIO_AUTHORITY_CODE=smoke-code arch -x86_64 /Volumes/occx86/occlubio.app/Contents/MacOS/occlubio --headless --port 8095 > qa/rosetta-server.log 2>&1 &
+          for i in $(seq 1 600); do curl -fs -o /dev/null http://127.0.0.1:8095/login && break; sleep 1; done
+          python -m pip install -q -e ".[infer,api,dev]"
+          python scripts/smoke_api.py --url http://127.0.0.1:8095 --home "$H" --authority-code smoke-code > qa/rosetta-smoke.txt 2>&1 && echo "rosetta_smoke=pass" >> qa/results.txt || echo "rosetta_smoke=FAIL" >> qa/results.txt
+          cat qa/rosetta-smoke.txt; cat qa/results.txt
+          cat qa/results.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: qa-rosetta, path: qa/ }
+
+  macos-browser-e2e:
+    name: Browser e2e on macOS (WebKit + Chromium)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - uses: actions/cache@v4
+        with: { path: ~/.insightface, key: insightface-buffalo_l-v1 }
+      - name: Run tests/e2e
+        env:
+          OCCLUBIO_E2E: "1"
+          OCCLUBIO_E2E_ENGINES: webkit,chromium
+          OCCLUBIO_E2E_ARTIFACTS: ${{ github.workspace }}/qa/shots
+        run: |
+          python -m pip install -q -e ".[infer,api,dev]" playwright
+          python -m playwright install webkit chromium
+          python -m pytest tests/e2e -v -rxXfs -s 2>&1 | tee qa-e2e.txt | grep -vE 'Applied providers|find model|set det-size'
+          tail -15 qa-e2e.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-macos-browser-e2e
+          path: |
+            qa/
+            qa-e2e.txt
+
+  ios:
+    name: iOS Simulator QA
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: ios-client/package-lock.json }
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - uses: actions/cache@v4
+        with: { path: ~/.insightface, key: insightface-buffalo_l-v1 }
+
+      - name: Build for the Simulator (timed, warnings captured)
+        working-directory: ios-client
+        run: |
+          mkdir -p ../qa
+          xcodebuild -version > ../qa/xcode-version.txt
+          T0=$(date +%s)
+          npm ci > ../qa/npm.log 2>&1
+          npm run build:sim > ../qa/xcodebuild.log 2>&1 || { tail -60 ../qa/xcodebuild.log; exit 1; }
+          echo "ios_build_seconds=$(( $(date +%s) - T0 ))" >> ../qa/results.txt
+          grep -E 'warning:' ../qa/xcodebuild.log | sort -u > ../qa/xcode-warnings.txt || true
+          echo "xcode_warnings=$(wc -l < ../qa/xcode-warnings.txt | tr -d ' ')" >> ../qa/results.txt
+          echo "app_size_kb=$(du -sk build/Build/Products/Debug-iphonesimulator/App.app | cut -f1)" >> ../qa/results.txt
+
+      - name: Start occlubio server
+        run: |
+          python -m pip install -q -e ".[infer,api]"
+          OCCLUBIO_AUTHORITY_CODE=qa python -m uvicorn occlubio.api.app:app --port 8001 > qa/server.log 2>&1 &
+          for i in $(seq 1 900); do curl -fs -o /dev/null http://127.0.0.1:8001/login && break; sleep 1; done
+          curl -s -H 'Content-Type: application/json' -d '{"email":"op@example.com","password":"qa-password-1","full_name":"QA Op","role":"authority","username":"qaop","authority_code":"qa"}' http://127.0.0.1:8001/api/register > /dev/null
+
+      - name: Device matrix (SE, Pro Max, iPad)
+        run: |
+          APP=ios-client/build/Build/Products/Debug-iphonesimulator/App.app
+          BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          python3 - > qa/devices.txt <<'PY'
+          import json, subprocess
+          d = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "--json"]))
+          devs = [x for rt, ds in d["devices"].items() if "iOS" in rt for x in ds]
+          runtimes = [r for r in json.loads(subprocess.check_output(["xcrun", "simctl", "list", "runtimes", "--json"]))["runtimes"]
+                      if r["platform"] == "iOS" and r["isAvailable"]]
+          types = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "--json"]))["devicetypes"]
+          for key, pred in [("se", lambda n: n.startswith("iPhone SE")), ("promax", lambda n: n.startswith("iPhone") and "Pro Max" in n), ("ipad", lambda n: n.startswith("iPad"))]:
+              x = next((x for x in devs if pred(x["name"])), None)
+              if x is None and runtimes:
+                  t = next((t for t in reversed(types) if pred(t["name"])), None)
+                  if t:
+                      try:
+                          udid = subprocess.check_output(["xcrun", "simctl", "create", "QA " + t["name"], t["identifier"], runtimes[-1]["identifier"]], text=True).strip()
+                          x = {"udid": udid, "name": t["name"] + " (created)"}
+                      except subprocess.CalledProcessError as e:
+                          print("#", key, "could not create", t["name"], e)
+              print(key, x["udid"] if x else "NONE", (x["name"] if x else "").replace(" ", "_"))
+          PY
+          cat qa/devices.txt
+          while read KEY UDID NAME; do
+            [ "$UDID" = "NONE" ] && { echo "$KEY=not-available" >> qa/results.txt; continue; }
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl install "$UDID" "$APP"
+            xcrun simctl launch --console-pty "$UDID" "$BID" > "qa/console-$KEY.log" 2>&1 &
+            sleep 3;  xcrun simctl io "$UDID" screenshot "qa/$KEY-app-3s.png"
+            sleep 7;  xcrun simctl io "$UDID" screenshot "qa/$KEY-app-10s.png"
+            sleep 15; xcrun simctl io "$UDID" screenshot "qa/$KEY-app-25s.png"
+            xcrun simctl launch "$UDID" com.apple.Preferences >/dev/null || true; sleep 4
+            xcrun simctl io "$UDID" screenshot "qa/$KEY-backgrounded.png"
+            xcrun simctl launch "$UDID" "$BID" >/dev/null; sleep 6
+            xcrun simctl io "$UDID" screenshot "qa/$KEY-app-resumed.png"
+            xcrun simctl terminate "$UDID" "$BID"; sleep 2
+            xcrun simctl launch "$UDID" "$BID" >/dev/null; sleep 12
+            xcrun simctl io "$UDID" screenshot "qa/$KEY-app-relaunched.png"
+            xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large || true
+            xcrun simctl terminate "$UDID" "$BID"; xcrun simctl launch "$UDID" "$BID" >/dev/null; sleep 12
+            xcrun simctl io "$UDID" screenshot "qa/$KEY-app-largest-text.png"
+            xcrun simctl ui "$UDID" content_size large || true
+            ( perl -e 'alarm shift; exec @ARGV' 90 xcrun simctl openurl "$UDID" "http://localhost:8001/login" && sleep 15 && xcrun simctl io "$UDID" screenshot "qa/$KEY-safari.png" ) || echo "$KEY safari=timed-out" >> qa/results.txt
+            xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "App"' > "qa/oslog-$KEY.txt" 2>&1 || true
+            echo "$KEY=$NAME tested" >> qa/results.txt
+            xcrun simctl shutdown "$UDID" || true
+          done < <(grep -v '^#' qa/devices.txt)
+
+      - name: Server unreachable state
+        run: |
+          pkill -f "uvicorn occlubio.api.app:app" || true
+          read KEY UDID NAME < <(grep -vE '^#|NONE' qa/devices.txt | head -1)
+          APP=ios-client/build/Build/Products/Debug-iphonesimulator/App.app
+          BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          xcrun simctl boot "$UDID" || true; xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl terminate "$UDID" "$BID" || true
+          xcrun simctl launch --console-pty "$UDID" "$BID" > qa/console-offline.log 2>&1 &
+          sleep 15
+          xcrun simctl io "$UDID" screenshot qa/offline-app.png
+          grep -E '"GET /' qa/server.log | awk '{print $NF, $0}' | cut -c1-160 > qa/server-requests.txt || true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## iOS Simulator" >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/    /' qa/results.txt >> "$GITHUB_STEP_SUMMARY" || true
+          cat qa/results.txt qa/xcode-version.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: qa-ios, path: qa/ }
+
+  ios-load-latency:
+    name: iOS load latency (localhost vs 127.0.0.1)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: ios-client/package-lock.json }
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - uses: actions/cache@v4
+        with: { path: ~/.insightface, key: insightface-buffalo_l-v1 }
+      - name: Server
+        run: |
+          mkdir -p qa
+          python -m pip install -q -e ".[infer,api]" pillow
+          OCCLUBIO_AUTHORITY_CODE=qa python -m uvicorn occlubio.api.app:app --port 8001 > qa/server.log 2>&1 &
+          for i in $(seq 1 900); do curl -fs -o /dev/null http://127.0.0.1:8001/login && break; sleep 1; done
+          for fam in 4 6; do
+            curl -$fam -s -o /dev/null -m 10 -w "host curl -$fam localhost: http=%{http_code} connect=%{time_connect}s total=%{time_total}s\n" http://localhost:8001/login >> qa/results.txt || echo "host curl -$fam localhost: failed ($?)" >> qa/results.txt
+          done
+      - name: Measure each URL
+        run: |
+          UDID=$(xcrun simctl list devices available --json | python -c "
+          import json, sys
+          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
+          print(next(d['udid'] for d in devs if d['name'].startswith('iPhone')))")
+          xcrun simctl boot "$UDID" || true; xcrun simctl bootstatus "$UDID" -b
+          cat > painted.py <<'PY'
+          import sys
+          from PIL import Image
+          im = Image.open(sys.argv[1]).convert("RGB"); w, h = im.size
+          print(len(set(im.crop((w // 6, h // 3, 5 * w // 6, 2 * h // 3)).resize((80, 80)).getdata())))
+          PY
+          wait_painted() {  # $1 label; prints seconds until the console is visibly painted (or 'never')
+            for i in $(seq 1 60); do
+              xcrun simctl io "$UDID" screenshot /tmp/p.png >/dev/null 2>&1
+              [ "$(python painted.py /tmp/p.png)" -gt 150 ] && { echo "$i"; return; }
+              sleep 1
+            done; echo never; }
+          for URL in http://localhost:8001 http://127.0.0.1:8001; do
+            TAG=$(echo "$URL" | sed 's#http://##; s#[:.]#_#g')
+            (cd ios-client && OCCLUBIO_SERVER_URL=$URL npm ci --silent && OCCLUBIO_SERVER_URL=$URL npm run build:sim > ../qa/build-$TAG.log 2>&1)
+            APP=ios-client/build/Build/Products/Debug-iphonesimulator/App.app
+            BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+            xcrun simctl uninstall "$UDID" "$BID" || true
+            xcrun simctl install "$UDID" "$APP"
+            for run in 1 2 3; do
+              xcrun simctl terminate "$UDID" "$BID" 2>/dev/null || true
+              xcrun simctl launch --console-pty "$UDID" "$BID" > "qa/console-$TAG-$run.log" 2>&1 &
+              t=$(wait_painted); echo "$URL run$run launch_to_painted_s=$t timeouts=$(grep -c 'timed out' qa/console-$TAG-$run.log)" >> qa/results.txt
+              xcrun simctl launch "$UDID" com.apple.Preferences >/dev/null; sleep 5
+              xcrun simctl launch "$UDID" "$BID" >/dev/null
+              t=$(wait_painted); echo "$URL run$run resume_to_painted_s=$t" >> qa/results.txt
+              xcrun simctl io "$UDID" screenshot "qa/$TAG-run$run-resumed.png"
+            done
+          done
+          cat qa/results.txt; cat qa/results.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: qa-ios-latency, path: qa/ }

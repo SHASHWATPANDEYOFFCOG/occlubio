@@ -42,12 +42,11 @@ class FaceAnalyzer:
         min_face: int = 24,
         detection_only: bool = False,
     ):
-        import onnxruntime as ort
         from insightface.app import FaceAnalysis
 
-        providers = providers or ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        available = set(ort.get_available_providers())
-        providers = [p for p in providers if p in available] or ["CPUExecutionProvider"]
+        from occlubio.platform_support import onnx_providers
+
+        providers = onnx_providers(providers)
         if "CUDAExecutionProvider" not in providers:
             ctx_id = -1
 

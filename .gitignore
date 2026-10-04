@@ -6,6 +6,7 @@ __pycache__/
 build/
 dist/
 .venv/
+.venv-build-*/
 venv/
 .pytest_cache/
 
@@ -17,7 +18,7 @@ venv/
 *.pt
 gallery_store/
 runs/
-data/
+/data/
 out*.jpg
 out*.mp4
 
@@ -35,4 +36,8 @@ out*.mp4
 .DS_Store
 Thumbs.db
 *.db
+authority_code.txt
 *.log
+
+# scalebench outputs (cached face embeddings, curves, reports)
+scalebench/results*/

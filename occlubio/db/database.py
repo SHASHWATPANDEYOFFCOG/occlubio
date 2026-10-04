@@ -6,8 +6,9 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from occlubio.db.models import Base
+from occlubio.platform_support import default_db_url
 
-DB_URL = os.environ.get("OCCLUBIO_DB", "sqlite:///occlubio.db")
+DB_URL = os.environ.get("OCCLUBIO_DB") or default_db_url()
 _connect_args = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
 
 engine = create_engine(DB_URL, connect_args=_connect_args, future=True)

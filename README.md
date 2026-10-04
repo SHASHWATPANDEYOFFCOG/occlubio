@@ -79,7 +79,7 @@ the browser: `.\run_server.ps1` on Windows, `./run_server.sh` on macOS/Linux (de
   an access code. Set it with `OCCLUBIO_AUTHORITY_CODE` (or the launcher's `-AuthorityCode` /
   `--authority-code`); if unset, the server generates a private code on first start, stores it in
   `authority_code.txt` in its data directory and prints it in the startup log. In the macOS app
-  use **File → Show Authority Sign-up Code**.
+  use **occlubio → Show Authority Sign-up Code**.
 - **Registration is validated end-to-end** — email/password/roll-number format checks, live
   "already taken" availability feedback, and per-field duplicate errors.
 - **Targeted video identification.** An authority uploads a clip and searches it for **one

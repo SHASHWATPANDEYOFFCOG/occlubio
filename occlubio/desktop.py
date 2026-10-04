@@ -16,6 +16,9 @@ from occlubio.platform_support import (is_frozen, open_url, os_name, user_data_d
 
 APP_TITLE = "occlubio"
 DEFAULT_PORT = 8001
+DEFAULT_WINDOW = (1280, 840)
+MIN_WINDOW = (900, 600)
+APP_MENU = "__app__"
 
 _PAGE = """<!doctype html><html><head><meta charset="utf-8"><style>
 body{{margin:0;height:100vh;display:grid;place-items:center;background:#080b14;color:#cbd5f5;
@@ -88,6 +91,16 @@ class ServerThread:
         self.thread.join(timeout=10)
 
 
+def window_geometry(screen_w: int, screen_h: int) -> tuple[int, int, tuple[int, int]]:
+    width, height = DEFAULT_WINDOW
+    min_w, min_h = MIN_WINDOW
+    if screen_w > 0 and screen_h > 0:
+        width = min(width, int(screen_w * 0.9))
+        height = min(height, int(screen_h * 0.9))
+        min_w, min_h = min(min_w, width), min(min_h, height)
+    return width, height, (min_w, min_h)
+
+
 def _run_window(server: ServerThread, url: str, log_path: str) -> None:
     import webview
     from webview.menu import Menu, MenuAction
@@ -99,9 +112,11 @@ def _run_window(server: ServerThread, url: str, log_path: str) -> None:
             "Authority sign-up code:\n\n" + AUTHORITY_CODE
             + "\n\nShare it only with operators who should be able to create authority accounts."))
 
-    menu = [Menu("File", [MenuAction("Open in Browser", lambda: open_url(url)),
-                          MenuAction("Show Authority Sign-up Code", show_authority_code)])]
-    kwargs = dict(width=1280, height=840, min_size=(900, 600), html=LOADING_HTML)
+    menu = [Menu(APP_MENU, [MenuAction("Open in Browser", lambda: open_url(url)),
+                            MenuAction("Show Authority Sign-up Code", show_authority_code)])]
+    screens = webview.screens
+    width, height, min_size = window_geometry(*((screens[0].width, screens[0].height) if screens else (0, 0)))
+    kwargs = dict(width=width, height=height, min_size=min_size, html=LOADING_HTML)
     start_kwargs = dict(private_mode=False, storage_path=str(user_data_dir() / "webview"))
     if "menu" in inspect.signature(webview.create_window).parameters:
         kwargs["menu"] = menu

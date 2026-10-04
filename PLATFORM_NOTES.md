@@ -31,9 +31,11 @@ and [`ios-client/`](ios-client/).
   - iPhone/iPad or any other device over the LAN: the live camera **requires HTTPS**. Over plain HTTP
     the console says so and points to the Photos button, which on iOS can take a picture directly.
   - Inside `occlubio.app` (macOS): the window uses WebKit. If the camera doesn't start there, use
-    **File → Open in Browser**.
+    **occlubio → Open in Browser**.
 - **macOS app window.** `occlubio.app` shows the console in a native window. It has the standard app
-  menu (About, Hide, **Quit with Cmd+Q**) and an Edit menu (Cmd+C/V/X/A). Closing the window quits the
+  menu (About, Open in Browser, Show Authority Sign-up Code, Hide, **Quit with Cmd+Q**), then the
+  Edit (Cmd+C/V/X/A) and View menus. The window opens at up to 1280×840, shrunk to fit smaller
+  screens. Closing the window quits the
   app and stops the server, as with other single-window utility apps. The Dock icon behaves normally.
   Keyboard shortcuts in the console itself are limited to `Esc` (close the clip player), which is the
   same on all platforms.

@@ -6,7 +6,9 @@ from typing import Any, Optional
 
 import yaml
 
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "configs" / "default.yaml"
+from occlubio.platform_support import resource_dir
+
+DEFAULT_CONFIG_PATH = resource_dir() / "configs" / "default.yaml"
 
 
 def _to_ns(obj: Any) -> Any:

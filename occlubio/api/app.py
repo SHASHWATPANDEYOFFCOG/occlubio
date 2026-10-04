@@ -19,14 +19,15 @@ from occlubio.api.schemas import (AlertList, AlertOut, AuthResponse, Availabilit
                                   RegisterRequest, SightingOut, UserOut, UserSightings)
 from occlubio.db import SessionLocal, get_db, init_db
 from occlubio.db.models import Alert, Enrollment, Job, Message, Session, Sighting, User
+from occlubio.platform_support import data_path, resource_dir
 from occlubio.service.face_service import (FaceService, decode_image, hash_password,
                                           verify_password)
 from occlubio.utils import ensure_dir, get_logger
 
 log = get_logger("api")
-WEB_DIR = Path(__file__).resolve().parents[2] / "web"
-UPLOAD_DIR = ensure_dir("data/uploads")
-OUTPUT_DIR = ensure_dir("data/outputs")
+WEB_DIR = resource_dir() / "web"
+UPLOAD_DIR = ensure_dir(data_path("data/uploads"))
+OUTPUT_DIR = ensure_dir(data_path("data/outputs"))
 
 AUTHORITY_CODE = os.environ.get("OCCLUBIO_AUTHORITY_CODE", "occlubio-authority")
 
@@ -425,8 +426,8 @@ def _run_identify(job_id: int, video_path: str, stride: int,
         job.status = "running"
         s.commit()
         try:
-            out = f"{OUTPUT_DIR}/job_{job_id}.mp4"
-            rep = f"{OUTPUT_DIR}/job_{job_id}.json"
+            out = (OUTPUT_DIR / f"job_{job_id}.mp4").as_posix()
+            rep = (OUTPUT_DIR / f"job_{job_id}.json").as_posix()
             report = service.identify_video(video_path, out, rep, session=s, stride=stride,
                                             target_embedding=target_embedding,
                                             target_label=target_label)

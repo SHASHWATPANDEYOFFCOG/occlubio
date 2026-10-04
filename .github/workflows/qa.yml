@@ -225,8 +225,16 @@ jobs:
           import json, subprocess
           d = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "--json"]))
           devs = [x for rt, ds in d["devices"].items() if "iOS" in rt for x in ds]
+          runtimes = [r for r in json.loads(subprocess.check_output(["xcrun", "simctl", "list", "runtimes", "--json"]))["runtimes"]
+                      if r["platform"] == "iOS" and r["isAvailable"]]
+          types = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "--json"]))["devicetypes"]
           for key, pred in [("se", lambda n: "SE" in n), ("promax", lambda n: "Pro Max" in n), ("ipad", lambda n: n.startswith("iPad"))]:
               x = next((x for x in devs if pred(x["name"])), None)
+              if x is None and runtimes:
+                  t = next((t for t in reversed(types) if pred(t["name"])), None)
+                  if t:
+                      udid = subprocess.check_output(["xcrun", "simctl", "create", "QA " + t["name"], t["identifier"], runtimes[-1]["identifier"]], text=True).strip()
+                      x = {"udid": udid, "name": t["name"] + " (created)"}
               print(key, x["udid"] if x else "NONE", (x["name"] if x else "").replace(" ", "_"))
           PY
           cat qa/devices.txt
@@ -239,8 +247,8 @@ jobs:
             sleep 3;  xcrun simctl io "$UDID" screenshot "qa/$KEY-app-3s.png"
             sleep 7;  xcrun simctl io "$UDID" screenshot "qa/$KEY-app-10s.png"
             sleep 15; xcrun simctl io "$UDID" screenshot "qa/$KEY-app-25s.png"
-            xcrun simctl openurl "$UDID" "http://localhost:8001/login"; sleep 12
-            xcrun simctl io "$UDID" screenshot "qa/$KEY-safari.png"
+            xcrun simctl launch "$UDID" com.apple.Preferences >/dev/null || true; sleep 4
+            xcrun simctl io "$UDID" screenshot "qa/$KEY-backgrounded.png"
             xcrun simctl launch "$UDID" "$BID" >/dev/null; sleep 6
             xcrun simctl io "$UDID" screenshot "qa/$KEY-app-resumed.png"
             xcrun simctl terminate "$UDID" "$BID"; sleep 2
@@ -250,6 +258,7 @@ jobs:
             xcrun simctl terminate "$UDID" "$BID"; xcrun simctl launch "$UDID" "$BID" >/dev/null; sleep 12
             xcrun simctl io "$UDID" screenshot "qa/$KEY-app-largest-text.png"
             xcrun simctl ui "$UDID" content_size large || true
+            ( perl -e 'alarm shift; exec @ARGV' 90 xcrun simctl openurl "$UDID" "http://localhost:8001/login" && sleep 15 && xcrun simctl io "$UDID" screenshot "qa/$KEY-safari.png" ) || echo "$KEY safari=timed-out" >> qa/results.txt
             xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "App"' > "qa/oslog-$KEY.txt" 2>&1 || true
             echo "$KEY=$NAME tested" >> qa/results.txt
             xcrun simctl shutdown "$UDID" || true

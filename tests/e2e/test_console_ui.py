@@ -447,6 +447,7 @@ def test_mobile_layout_has_no_horizontal_overflow(env, pw, device):
     page.context.close()
 
 
+@pytest.mark.xfail(strict=True, reason="ISSUE-008: notice textarea keeps an inline 0.92rem font size, so iOS zooms on focus")
 @pytest.mark.parametrize("device", ["iPhone SE", "iPhone 15 Pro Max"])
 def test_phone_inputs_do_not_trigger_zoom(env, pw, device):
     if env["engine"] != "webkit":

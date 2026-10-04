@@ -22,6 +22,10 @@ datas = [
     (str(ROOT / "configs"), "configs"),
 ]
 datas += collect_data_files("insightface")
+# insightface.data.get_object() resolves sys._MEIPASS/objects when frozen, not the package path.
+import insightface.data as _ins_data  # noqa: E402
+
+datas.append((str(Path(_ins_data.__file__).parent / "objects"), "objects"))
 binaries = collect_dynamic_libs("onnxruntime") + collect_dynamic_libs("faiss")
 hiddenimports = (
     collect_submodules("uvicorn")

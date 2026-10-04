@@ -68,6 +68,7 @@ jobs:
           test -f "$HOME/Library/Application Support/occlubio/occlubio.db" && echo "db_in_app_support=yes" >> qa/results.txt || echo "db_in_app_support=NO" >> qa/results.txt
           test -f "$HOME/Library/Logs/occlubio/occlubio.log" && echo "log_in_library_logs=yes" >> qa/results.txt || echo "log_in_library_logs=NO" >> qa/results.txt
           cp "$HOME/Library/Logs/occlubio/occlubio.log" qa/app.log 2>/dev/null || true
+          echo "bundle_missing_file_errors=$(grep -c 'File not found' qa/app.log || true)" >> qa/results.txt
 
       - name: Authority code inside the packaged app (public default rejected, generated code works)
         run: |

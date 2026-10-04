@@ -6,7 +6,7 @@ name: QA (extended)
 on:
   workflow_dispatch:
   push:
-    branches: ["feature/cross-platform", "qa/**"]
+    branches: ["feature/cross-platform", "qa/**", "fix/**"]
     paths: [".github/workflows/qa.yml", "tests/e2e/**"]
 
 env:
@@ -297,3 +297,65 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: qa-ios, path: qa/ }
+
+  ios-load-latency:
+    name: iOS load latency (localhost vs 127.0.0.1)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: ios-client/package-lock.json }
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - uses: actions/cache@v4
+        with: { path: ~/.insightface, key: insightface-buffalo_l-v1 }
+      - name: Server
+        run: |
+          mkdir -p qa
+          python -m pip install -q -e ".[infer,api]" pillow
+          OCCLUBIO_AUTHORITY_CODE=qa python -m uvicorn occlubio.api.app:app --port 8001 > qa/server.log 2>&1 &
+          for i in $(seq 1 900); do curl -fs -o /dev/null http://127.0.0.1:8001/login && break; sleep 1; done
+          for fam in 4 6; do
+            curl -$fam -s -o /dev/null -m 10 -w "host curl -$fam localhost: http=%{http_code} connect=%{time_connect}s total=%{time_total}s\n" http://localhost:8001/login >> qa/results.txt || echo "host curl -$fam localhost: failed ($?)" >> qa/results.txt
+          done
+      - name: Measure each URL
+        run: |
+          UDID=$(xcrun simctl list devices available --json | python -c "
+          import json, sys
+          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
+          print(next(d['udid'] for d in devs if d['name'].startswith('iPhone')))")
+          xcrun simctl boot "$UDID" || true; xcrun simctl bootstatus "$UDID" -b
+          cat > painted.py <<'PY'
+          import sys
+          from PIL import Image
+          im = Image.open(sys.argv[1]).convert("RGB"); w, h = im.size
+          print(len(set(im.crop((w // 6, h // 3, 5 * w // 6, 2 * h // 3)).resize((80, 80)).getdata())))
+          PY
+          wait_painted() {  # $1 label; prints seconds until the console is visibly painted (or 'never')
+            for i in $(seq 1 60); do
+              xcrun simctl io "$UDID" screenshot /tmp/p.png >/dev/null 2>&1
+              [ "$(python painted.py /tmp/p.png)" -gt 150 ] && { echo "$i"; return; }
+              sleep 1
+            done; echo never; }
+          for URL in http://localhost:8001 http://127.0.0.1:8001; do
+            TAG=$(echo "$URL" | sed 's#http://##; s#[:.]#_#g')
+            (cd ios-client && OCCLUBIO_SERVER_URL=$URL npm ci --silent && OCCLUBIO_SERVER_URL=$URL npm run build:sim > ../qa/build-$TAG.log 2>&1)
+            APP=ios-client/build/Build/Products/Debug-iphonesimulator/App.app
+            BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+            xcrun simctl uninstall "$UDID" "$BID" || true
+            xcrun simctl install "$UDID" "$APP"
+            for run in 1 2 3; do
+              xcrun simctl terminate "$UDID" "$BID" 2>/dev/null || true
+              xcrun simctl launch --console-pty "$UDID" "$BID" > "qa/console-$TAG-$run.log" 2>&1 &
+              t=$(wait_painted); echo "$URL run$run launch_to_painted_s=$t timeouts=$(grep -c 'timed out' qa/console-$TAG-$run.log)" >> qa/results.txt
+              xcrun simctl launch "$UDID" com.apple.Preferences >/dev/null; sleep 5
+              xcrun simctl launch "$UDID" "$BID" >/dev/null
+              t=$(wait_painted); echo "$URL run$run resume_to_painted_s=$t" >> qa/results.txt
+              xcrun simctl io "$UDID" screenshot "qa/$TAG-run$run-resumed.png"
+            done
+          done
+          cat qa/results.txt; cat qa/results.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: qa-ios-latency, path: qa/ }

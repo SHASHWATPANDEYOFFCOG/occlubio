@@ -13,6 +13,7 @@ import numpy as np
 from fastapi import (BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException,
                      UploadFile)
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session as DBSession
 
 from occlubio.api.schemas import (AlertList, AlertOut, AuthResponse, AvailabilityOut, EnrollResponse,
@@ -88,6 +89,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="occlubio face-recognition platform", lifespan=lifespan)
+if (WEB_DIR / "static").is_dir():
+    app.mount("/static", StaticFiles(directory=WEB_DIR / "static"), name="static")
 
 
 def _page(name: str) -> str:

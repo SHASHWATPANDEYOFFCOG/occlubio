@@ -2,7 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="theme-color" content="#080b14" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="occlubio" />
+<link rel="manifest" href="/static/manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
 <title>occlubio — Sign in</title>
 <style>
 
@@ -38,8 +47,9 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{ margin:0; min-height:100vh; font-family:var(--font-body); color:var(--txt);
-  background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px;
+body{ margin:0; min-height:100vh; min-height:100dvh; font-family:var(--font-body); color:var(--txt);
+  background:var(--bg); display:flex; align-items:center; justify-content:center;
+  padding:max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   overflow-x:hidden; overflow-y:auto; }
 
 #fx{position:fixed; inset:0; width:100%; height:100%; z-index:0; opacity:.9}
@@ -141,6 +151,12 @@ input.valid{border-color:rgba(34,197,94,.55)}
 form{animation:formIn .4s var(--ease-out) both}
 @keyframes formIn{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
 
+@media (max-width:640px){ input,select{font-size:16px} }
+@media (hover:none){
+  button:hover,.role:hover{transform:none}
+  button:hover{box-shadow:none}
+  button:hover::after{animation:none}
+}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
   .blob{animation:none}

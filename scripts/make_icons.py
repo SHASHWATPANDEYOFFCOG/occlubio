@@ -15,14 +15,15 @@ def _lerp(a, b, t):
     return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
 
 
-def render(size: int, rounded: bool) -> Image.Image:
+def render(size: int, rounded: bool, transparent: bool = False) -> Image.Image:
     s = 1024
-    img = Image.new("RGBA", (s, s))
-    px = img.load()
-    for y in range(s):
-        row = _lerp(BG_TOP, BG_BOTTOM, y / (s - 1))
-        for x in range(s):
-            px[x, y] = row + (255,)
+    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    if not transparent:
+        px = img.load()
+        for y in range(s):
+            row = _lerp(BG_TOP, BG_BOTTOM, y / (s - 1))
+            for x in range(s):
+                px[x, y] = row + (255,)
 
     glow = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     ImageDraw.Draw(glow).ellipse((212, 212, 812, 812), fill=BRAND_A + (110,))
@@ -71,10 +72,15 @@ def main() -> None:
                                            (256, 256), (512, 512), (1024, 1024)])
     full.convert("RGB").save(mac / "icon-1024.png")
 
-    ios = root / "ios-client" / "resources"
-    ios.mkdir(parents=True, exist_ok=True)
-    full.convert("RGB").save(ios / "icon-1024.png")
-    print("icons written:", web, mac, ios)
+    assets = root / "ios-client" / "ios" / "App" / "App" / "Assets.xcassets"
+    if assets.is_dir():
+        full.convert("RGB").save(assets / "AppIcon.appiconset" / "AppIcon-512@2x.png")
+        splash = Image.new("RGB", (2732, 2732), BG_BOTTOM)
+        mark = render(1024, rounded=False, transparent=True).resize((560, 560), Image.LANCZOS)
+        splash.paste(mark, ((2732 - 560) // 2, (2732 - 560) // 2), mark)
+        for name in ("splash-2732x2732.png", "splash-2732x2732-1.png", "splash-2732x2732-2.png"):
+            splash.save(assets / "Splash.imageset" / name, optimize=True)
+    print("icons written:", web, mac, assets if assets.is_dir() else "(no iOS project yet)")
 
 
 if __name__ == "__main__":

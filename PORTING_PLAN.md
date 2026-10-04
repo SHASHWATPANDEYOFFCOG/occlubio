@@ -1,6 +1,13 @@
 # Porting plan: Windows → Windows + macOS + iOS
 
-Status: **discovery done, no code changed yet.** Branch: `feature/cross-platform`.
+Status: **implemented** on branch `feature/cross-platform` with Option A (iOS client), a full macOS
+`.app`/`.dmg`, and opt-in HTTPS for the LAN. Platform behaviour and open items: PLATFORM_NOTES.md.
+
+Found during implementation:
+- `.gitignore`'s `data/` rule also hid the `occlubio/data` package, so every fresh clone was broken
+  on every OS. Fixed by anchoring it to `/data/`.
+- #6 is smaller than expected: insightface **1.0.1** (what Windows already used) is a pure-Python
+  wheel, so macOS needs no compiler. The floor is now `insightface>=1.0.1`.
 Baseline on Windows (Python 3.12.6, `.venv`): `pytest -q` → 5 passed, 1 skipped.
 
 ## 1. Stack summary

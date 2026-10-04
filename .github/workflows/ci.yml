@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  OCCLUBIO_AUTHORITY_CODE: ci-code
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.insightface
+          key: insightface-buffalo_l-v1
+
+      - name: Launcher bootstraps venv and serves (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process powershell -PassThru -NoNewWindow -RedirectStandardOutput server.log -RedirectStandardError server.err `
+               -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','run_server.ps1','-Port','8001','-NoBrowser'
+          $ok = $false
+          for ($i = 0; $i -lt 900 -and -not $ok; $i++) {
+            Start-Sleep -Seconds 1
+            try { $ok = (Invoke-WebRequest http://127.0.0.1:8001/login -UseBasicParsing -TimeoutSec 3).StatusCode -eq 200 } catch {}
+          }
+          $c = Get-NetTCPConnection -LocalPort 8001 -State Listen -ErrorAction SilentlyContinue
+          if ($c) { Stop-Process -Id $c[0].OwningProcess -Force }
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          if (-not $ok) { Get-Content server.log, server.err -ErrorAction SilentlyContinue; throw "run_server.ps1 did not serve /login" }
+          "run_server.ps1 served /login"
+
+      - name: Launcher bootstraps venv and serves (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./run_server.sh --port 8001 --no-browser > server.log 2>&1 &
+          for i in $(seq 1 900); do
+            curl -fs -o /dev/null http://127.0.0.1:8001/login && break
+            sleep 1
+          done
+          curl -fs -o /dev/null http://127.0.0.1:8001/login || { cat server.log; exit 1; }
+          pkill -f "uvicorn occlubio.api.app:app" || true
+          echo "run_server.sh served /login"
+
+      - name: Install dev extras into the launcher's venv
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=.venv/Scripts/python.exe; else PY=.venv/bin/python; fi
+          echo "PY=$PY" >> "$GITHUB_ENV"
+          "$PY" -m pip install -e ".[infer,api,dev]"
+
+      - name: Unit tests
+        shell: bash
+        run: '"$PY" -m pytest -q'
+
+      - name: End-to-end smoke (register, enroll, identify)
+        shell: bash
+        run: '"$PY" scripts/smoke_api.py'
+
+  macos-app:
+    name: macOS app (${{ matrix.arch }})
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    env:
+      APPLE_CERT_P12: ${{ secrets.APPLE_CERT_P12 }}
+      APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.insightface
+          key: insightface-buffalo_l-v1
+
+      - name: Import Developer ID certificate
+        if: env.APPLE_CERT_P12 != ''
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERT_P12 }}
+          p12-password: ${{ secrets.APPLE_CERT_PASSWORD }}
+
+      - name: Build, sign, smoke-test and package
+        run: packaging/macos/build_macos.sh --python "python${PYTHON_VERSION}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: occlubio-macos-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  ios:
+    name: iOS Simulator
+    needs: test
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ios-client/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.insightface
+          key: insightface-buffalo_l-v1
+
+      - name: Build for the iOS Simulator
+        working-directory: ios-client
+        run: |
+          npm ci
+          npm run build:sim
+
+      - name: Start an occlubio server for the app to load
+        run: |
+          python -m pip install -e ".[infer,api]"
+          python -m uvicorn occlubio.api.app:app --port 8001 > server.log 2>&1 &
+          for i in $(seq 1 900); do curl -fs -o /dev/null http://127.0.0.1:8001/login && break; sleep 1; done
+          curl -fs -o /dev/null http://127.0.0.1:8001/login || { cat server.log; exit 1; }
+
+      - name: Install and launch on a simulator
+        run: |
+          UDID=$(xcrun simctl list devices available --json | python -c "
+          import json, sys
+          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
+          print(next(d['udid'] for d in devs if d['name'].startswith('iPhone')))")
+          echo "simulator $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" ios-client/build/Build/Products/Debug-iphonesimulator/App.app
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' ios-client/build/Build/Products/Debug-iphonesimulator/App.app/Info.plist)
+          xcrun simctl launch "$UDID" "$BUNDLE_ID"
+          for i in $(seq 1 60); do grep -q '"GET /login' server.log && break; sleep 1; done
+          sleep 5
+          xcrun simctl io "$UDID" screenshot ios-simulator.png
+          grep -q '"GET /login' server.log || { echo "app never loaded the console"; cat server.log; exit 1; }
+          echo "app loaded the console from the server:"; grep '"GET /' server.log | head
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-simulator-screenshot
+          path: ios-simulator.png
+          if-no-files-found: ignore

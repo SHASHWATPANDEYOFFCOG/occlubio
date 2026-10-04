@@ -228,13 +228,16 @@ jobs:
           runtimes = [r for r in json.loads(subprocess.check_output(["xcrun", "simctl", "list", "runtimes", "--json"]))["runtimes"]
                       if r["platform"] == "iOS" and r["isAvailable"]]
           types = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devicetypes", "--json"]))["devicetypes"]
-          for key, pred in [("se", lambda n: "SE" in n), ("promax", lambda n: "Pro Max" in n), ("ipad", lambda n: n.startswith("iPad"))]:
+          for key, pred in [("se", lambda n: n.startswith("iPhone SE")), ("promax", lambda n: n.startswith("iPhone") and "Pro Max" in n), ("ipad", lambda n: n.startswith("iPad"))]:
               x = next((x for x in devs if pred(x["name"])), None)
               if x is None and runtimes:
                   t = next((t for t in reversed(types) if pred(t["name"])), None)
                   if t:
-                      udid = subprocess.check_output(["xcrun", "simctl", "create", "QA " + t["name"], t["identifier"], runtimes[-1]["identifier"]], text=True).strip()
-                      x = {"udid": udid, "name": t["name"] + " (created)"}
+                      try:
+                          udid = subprocess.check_output(["xcrun", "simctl", "create", "QA " + t["name"], t["identifier"], runtimes[-1]["identifier"]], text=True).strip()
+                          x = {"udid": udid, "name": t["name"] + " (created)"}
+                      except subprocess.CalledProcessError as e:
+                          print("#", key, "could not create", t["name"], e)
               print(key, x["udid"] if x else "NONE", (x["name"] if x else "").replace(" ", "_"))
           PY
           cat qa/devices.txt
@@ -262,12 +265,12 @@ jobs:
             xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "App"' > "qa/oslog-$KEY.txt" 2>&1 || true
             echo "$KEY=$NAME tested" >> qa/results.txt
             xcrun simctl shutdown "$UDID" || true
-          done < qa/devices.txt
+          done < <(grep -v '^#' qa/devices.txt)
 
       - name: Server unreachable state
         run: |
           pkill -f "uvicorn occlubio.api.app:app" || true
-          read KEY UDID NAME < <(grep -v NONE qa/devices.txt | head -1)
+          read KEY UDID NAME < <(grep -vE '^#|NONE' qa/devices.txt | head -1)
           APP=ios-client/build/Build/Products/Debug-iphonesimulator/App.app
           BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           xcrun simctl boot "$UDID" || true; xcrun simctl bootstatus "$UDID" -b

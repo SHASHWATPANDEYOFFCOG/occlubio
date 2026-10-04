@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import html
 import inspect
+import json
 import os
 import socket
 import sys
@@ -91,7 +92,15 @@ def _run_window(server: ServerThread, url: str, log_path: str) -> None:
     import webview
     from webview.menu import Menu, MenuAction
 
-    menu = [Menu("File", [MenuAction("Open in Browser", lambda: open_url(url))])]
+    def show_authority_code():
+        from occlubio.api.app import AUTHORITY_CODE
+
+        window.evaluate_js("alert(%s)" % json.dumps(
+            "Authority sign-up code:\n\n" + AUTHORITY_CODE
+            + "\n\nShare it only with operators who should be able to create authority accounts."))
+
+    menu = [Menu("File", [MenuAction("Open in Browser", lambda: open_url(url)),
+                          MenuAction("Show Authority Sign-up Code", show_authority_code)])]
     kwargs = dict(width=1280, height=840, min_size=(900, 600), html=LOADING_HTML)
     start_kwargs = dict(private_mode=False, storage_path=str(user_data_dir() / "webview"))
     if "menu" in inspect.signature(webview.create_window).parameters:

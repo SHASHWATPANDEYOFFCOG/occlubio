@@ -76,7 +76,10 @@ the browser: `.\run_server.ps1` on Windows, `./run_server.sh` on macOS/Linux (de
 
 - **Two roles.** Students sign up with their **roll number** (used as the login username) and
   enroll their own face from photos or a webcam burst. Authorities sign up with a username plus
-  an access code (set `OCCLUBIO_AUTHORITY_CODE` in the environment before starting the server).
+  an access code. Set it with `OCCLUBIO_AUTHORITY_CODE` (or the launcher's `-AuthorityCode` /
+  `--authority-code`); if unset, the server generates a private code on first start, stores it in
+  `authority_code.txt` in its data directory and prints it in the startup log. In the macOS app
+  use **File → Show Authority Sign-up Code**.
 - **Registration is validated end-to-end** — email/password/roll-number format checks, live
   "already taken" availability feedback, and per-field duplicate errors.
 - **Targeted video identification.** An authority uploads a clip and searches it for **one

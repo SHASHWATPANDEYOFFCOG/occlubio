@@ -69,18 +69,26 @@ jobs:
           test -f "$HOME/Library/Logs/occlubio/occlubio.log" && echo "log_in_library_logs=yes" >> qa/results.txt || echo "log_in_library_logs=NO" >> qa/results.txt
           cp "$HOME/Library/Logs/occlubio/occlubio.log" qa/app.log 2>/dev/null || true
 
-      - name: Register via default authority code inside the packaged app
+      - name: Authority code inside the packaged app (public default rejected, generated code works)
         run: |
-          code=$(curl -s -o qa/register.json -w '%{http_code}' -H 'Content-Type: application/json' \
-            -d '{"email":"op@example.com","password":"qa-password-1","full_name":"QA Op","role":"authority","username":"qaop","authority_code":"occlubio-authority"}' \
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+            -d '{"email":"x@example.com","password":"qa-password-1","full_name":"Old Default","role":"authority","username":"olddefault","authority_code":"occlubio-authority"}' \
             http://127.0.0.1:8001/api/register)
-          echo "default_authority_code_accepted_http=$code" >> qa/results.txt
+          echo "public_default_code_http=$code (expect 403)" >> qa/results.txt
+          CODE_FILE="$HOME/Library/Application Support/occlubio/authority_code.txt"
+          test -f "$CODE_FILE" && echo "authority_code_file=yes perms=$(stat -f %Lp "$CODE_FILE")" >> qa/results.txt || echo "authority_code_file=NO" >> qa/results.txt
+          GEN=$(tr -d '\n' < "$CODE_FILE")
+          python3 -c 'import json,sys; print(json.dumps({"email":"op@example.com","password":"qa-password-1","full_name":"QA Op","role":"authority","username":"qaop","authority_code":sys.argv[1]}))' "$GEN" > qa/reg-body.json
+          code=$(curl -s -o qa/register.json -w '%{http_code}' -H 'Content-Type: application/json' \
+            --data @qa/reg-body.json http://127.0.0.1:8001/api/register)
+          echo "generated_code_register_http=$code (expect 200)" >> qa/results.txt
 
       - name: App menu, window, Cmd+Q
         run: |
           osascript -e 'tell application "System Events" to get name of every menu bar item of menu bar 1 of process "occlubio"' > qa/menus.txt 2>&1 || echo "menu introspection unavailable (accessibility)" >> qa/menus.txt
           osascript -e 'tell application "System Events" to get name of every menu item of menu 1 of menu bar item 2 of menu bar 1 of process "occlubio"' >> qa/menus.txt 2>&1 || true
           osascript -e 'tell application "System Events" to get name of every menu item of menu 1 of menu bar item 3 of menu bar 1 of process "occlubio"' >> qa/menus.txt 2>&1 || true
+          osascript -e 'tell application "System Events" to get name of every menu item of menu 1 of menu bar item "File" of menu bar 1 of process "occlubio"' >> qa/menus.txt 2>&1 || true
           osascript -e 'tell application "occlubio" to activate' -e 'delay 1' -e 'tell application "System Events" to keystroke "q" using command down' > qa/cmdq.txt 2>&1 || true
           gone=0; for i in $(seq 1 20); do pgrep -f 'occlubio.app/Contents/MacOS/occlubio' >/dev/null || { gone=1; break; }; sleep 1; done
           echo "cmd_q_keystroke_quits=$gone" >> qa/results.txt

@@ -18,8 +18,8 @@
 param(
     [int]    $Port          = 8001,
     [string] $Bind          = "127.0.0.1",
-    # Code authorities must supply when signing up. Defaults to the app's own
-    # fallback in occlubio/api/app.py so behaviour matches an unset environment.
+    # Code authorities must supply when signing up. If empty, the server generates a
+    # private code on first start (authority_code.txt) and prints it in the log.
     [string] $AuthorityCode = "",
     # sqlite:///occlubio.db unless overridden.
     [string] $DbUrl         = "",

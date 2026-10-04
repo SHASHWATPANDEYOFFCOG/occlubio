@@ -31,7 +31,28 @@ WEB_DIR = resource_dir() / "web"
 UPLOAD_DIR = ensure_dir(data_path("data/uploads"))
 OUTPUT_DIR = ensure_dir(data_path("data/outputs"))
 
-AUTHORITY_CODE = os.environ.get("OCCLUBIO_AUTHORITY_CODE", "occlubio-authority")
+AUTHORITY_CODE_FILE = data_path("authority_code.txt")
+
+
+def _load_authority_code() -> str:
+    configured = os.environ.get("OCCLUBIO_AUTHORITY_CODE", "").strip()
+    if configured:
+        return configured
+    if AUTHORITY_CODE_FILE.exists():
+        stored = AUTHORITY_CODE_FILE.read_text(encoding="utf-8").strip()
+        if stored:
+            return stored
+    code = secrets.token_urlsafe(12)
+    AUTHORITY_CODE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    AUTHORITY_CODE_FILE.write_text(code + "\n", encoding="utf-8")
+    try:
+        AUTHORITY_CODE_FILE.chmod(0o600)
+    except OSError:
+        pass
+    return code
+
+
+AUTHORITY_CODE = _load_authority_code()
 
 service: FaceService | None = None
 
@@ -84,6 +105,10 @@ async def lifespan(app: FastAPI):
     service = FaceService()
     with SessionLocal() as s:
         service.startup(s)
+    if os.environ.get("OCCLUBIO_AUTHORITY_CODE", "").strip():
+        log.info("authority sign-up code: from OCCLUBIO_AUTHORITY_CODE")
+    else:
+        log.info("authority sign-up code: %s (stored in %s)", AUTHORITY_CODE, AUTHORITY_CODE_FILE.resolve())
     log.info("platform ready")
     yield
 
@@ -124,7 +149,7 @@ def register(req: RegisterRequest, db: DBSession = Depends(get_db)):
         raise HTTPException(422, "full name is required")
 
     if role == "authority":
-        if req.authority_code != AUTHORITY_CODE:
+        if not secrets.compare_digest((req.authority_code or "").encode(), AUTHORITY_CODE.encode()):
             raise HTTPException(403, "invalid authority access code")
         username = (req.username or "").strip()
         if not username:

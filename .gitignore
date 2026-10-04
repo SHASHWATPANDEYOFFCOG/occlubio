@@ -17,7 +17,7 @@ venv/
 *.pt
 gallery_store/
 runs/
-data/
+/data/
 out*.jpg
 out*.mp4
 

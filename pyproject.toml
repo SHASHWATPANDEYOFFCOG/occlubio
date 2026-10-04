@@ -19,7 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 # Inference path (pretrained baseline). Use onnxruntime-gpu / faiss-gpu on CUDA machines.
 infer = [
-    "insightface>=0.7.3",
+    "insightface>=1.0.1",
     "onnxruntime>=1.16",
     "faiss-cpu>=1.7.4",
 ]

@@ -1,0 +1,17 @@
+# Normalise line endings so shell scripts work on macOS/Linux and Windows
+# scripts keep CRLF, regardless of each developer's core.autocrlf.
+* text=auto eol=lf
+
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.ico  binary
+*.icns binary
+*.pdf  binary
+*.mp4  binary
+*.onnx binary
+*.db   binary

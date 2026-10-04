@@ -567,3 +567,31 @@ def test_accessibility_audit_has_no_violations(env):
         audit(page, view)
     page.context.close()
     assert not found, {k: sorted(v) for k, v in found.items()}
+
+
+@pytest.mark.parametrize("path", ["/login", "/"])
+def test_decorative_motion_stops_when_idle_and_resumes_on_input(env, path):
+    page = _page(env)
+    if path == "/":
+        _login(page, env, "operator.one")
+    page.add_init_script("window.OCCLUBIO_IDLE_MS = 1500;"
+                         "window.__raf = 0; const _r = window.requestAnimationFrame.bind(window);"
+                         "window.requestAnimationFrame = cb => { window.__raf++; return _r(cb); };")
+    page.goto(env["server"].base + path)
+    page.wait_for_timeout(600)
+    running = "document.getAnimations().filter(a => a.playState === 'running' && isFinite(a.effect.getTiming().duration) && a.effect.getTiming().iterations === Infinity).length"
+    assert page.evaluate(running) > 0, "expected decorative animations while active"
+    page.wait_for_timeout(2500)
+    assert page.evaluate(running) == 0, "decorative animations still running after the idle timeout"
+    for _ in range(5):
+        before = page.evaluate("window.__raf")
+        page.wait_for_timeout(1000)
+        if page.evaluate("window.__raf") - before <= 1:
+            break
+    else:
+        pytest.fail("a requestAnimationFrame loop kept running while idle")
+    page.mouse.move(200, 200)
+    page.mouse.move(260, 240)
+    page.wait_for_timeout(300)
+    assert page.evaluate(running) > 0, "animations did not resume on input"
+    page.context.close()

@@ -248,6 +248,7 @@ tbody tr{animation:revealUp .4s var(--ease-out) both}
   button:hover::after{animation:none}
 }
 
+html.ambient-paused *, html.ambient-paused *::before, html.ambient-paused *::after{animation-play-state:paused !important}
 [data-activate]:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
 .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
 @media (prefers-reduced-motion: reduce){
@@ -497,6 +498,24 @@ function paintIcons(){ document.querySelectorAll('[data-ico]').forEach(el=>{ el.
 const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const S = JSON.parse(localStorage.getItem('occlubio_session') || 'null');
+
+(function(){
+  const IDLE_MS = window.OCCLUBIO_IDLE_MS || 20000;
+  const root = document.documentElement, subs = [];
+  let timer;
+  window.onAmbient = fn => { subs.push(fn); fn(root.classList.contains('ambient-paused')); };
+  function set(paused){
+    if(root.classList.contains('ambient-paused') === paused) return;
+    root.classList.toggle('ambient-paused', paused);
+    subs.forEach(fn => fn(paused));
+  }
+  function wake(){ set(false); clearTimeout(timer); timer = setTimeout(() => set(true), IDLE_MS); }
+  ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => addEventListener(ev, wake, {passive: true}));
+  addEventListener('focus', wake);
+  addEventListener('blur', () => set(true));
+  document.addEventListener('visibilitychange', () => document.hidden ? set(true) : wake());
+  wake();
+})();
 
 document.addEventListener('keydown', e => {
   const t = e.target;

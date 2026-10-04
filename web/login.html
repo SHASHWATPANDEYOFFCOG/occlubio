@@ -157,6 +157,7 @@ form{animation:formIn .4s var(--ease-out) both}
   button:hover{box-shadow:none}
   button:hover::after{animation:none}
 }
+html.ambient-paused *, html.ambient-paused *::before, html.ambient-paused *::after{animation-play-state:paused !important}
 [data-activate]:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
@@ -258,6 +259,24 @@ form{animation:formIn .4s var(--ease-out) both}
 
 <script>
 if (localStorage.getItem('occlubio_session')) location.replace('/');
+
+(function(){
+  const IDLE_MS = window.OCCLUBIO_IDLE_MS || 20000;
+  const root = document.documentElement, subs = [];
+  let timer;
+  window.onAmbient = fn => { subs.push(fn); fn(root.classList.contains('ambient-paused')); };
+  function set(paused){
+    if(root.classList.contains('ambient-paused') === paused) return;
+    root.classList.toggle('ambient-paused', paused);
+    subs.forEach(fn => fn(paused));
+  }
+  function wake(){ set(false); clearTimeout(timer); timer = setTimeout(() => set(true), IDLE_MS); }
+  ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach(ev => addEventListener(ev, wake, {passive: true}));
+  addEventListener('focus', wake);
+  addEventListener('blur', () => set(true));
+  document.addEventListener('visibilitychange', () => document.hidden ? set(true) : wake());
+  wake();
+})();
 
 document.addEventListener('keydown', e => {
   const t = e.target;
@@ -409,7 +428,7 @@ async function doRegister(e){
   const small = matchMedia('(max-width: 640px)').matches;
   const cv = document.getElementById('fx'); if(!cv) return;
   const ctx = cv.getContext('2d', { alpha:true });
-  let w,h,dpr,pts,raf,running=false;
+  let w,h,dpr,pts,raf,running=false,last=0;
   function size(){
     dpr = Math.min(window.devicePixelRatio||1, 2);
     w = cv.clientWidth; h = cv.clientHeight;
@@ -420,7 +439,9 @@ async function doRegister(e){
     pts = Array.from({length:n}, ()=>({ x:Math.random()*w, y:Math.random()*h,
       vx:(Math.random()-.5)*0.22, vy:(Math.random()-.5)*0.22, r:Math.random()*1.6+0.6 }));
   }
-  function frame(){
+  function frame(ts){
+    if(running && ts && ts - last < 33){ raf = requestAnimationFrame(frame); return; }
+    last = ts || 0;
     ctx.clearRect(0,0,w,h);
     for(const p of pts){
       p.x+=p.vx; p.y+=p.vy;
@@ -435,14 +456,14 @@ async function doRegister(e){
     }
     for(const p of pts){ ctx.fillStyle='rgba(150,180,255,.7)';
       ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.283); ctx.fill(); }
-    raf = requestAnimationFrame(frame);
+    if(running) raf = requestAnimationFrame(frame);
   }
-  function start(){ if(running) return; running=true; frame(); }
+  function start(){ if(running) return; running=true; raf = requestAnimationFrame(frame); }
   function stop(){ running=false; cancelAnimationFrame(raf); }
   size(); seed();
   if(reduce){ frame(); cancelAnimationFrame(raf); }
   else{ start();
-    document.addEventListener('visibilitychange', ()=> document.hidden ? stop() : start());
+    window.onAmbient(paused => paused ? stop() : start());
     let t; window.addEventListener('resize', ()=>{ clearTimeout(t); t=setTimeout(()=>{ size(); seed(); },200); });
   }
 })();

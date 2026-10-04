@@ -117,7 +117,7 @@ jobs:
           python -m venv /tmp/trainvenv
           /tmp/trainvenv/bin/pip install -q -e ".[train,dev]" > qa/train-install.log 2>&1 && echo "train_extra_install=ok" >> qa/results.txt || echo "train_extra_install=FAIL" >> qa/results.txt
           /tmp/trainvenv/bin/python -c "import torch, numpy; print('torch', torch.__version__, 'numpy', numpy.__version__); torch.from_numpy(numpy.zeros(3)); print('mps', torch.backends.mps.is_available())" > qa/train-check.txt 2>&1 && echo "torch_numpy_interop=ok ($(head -1 qa/train-check.txt))" >> qa/results.txt || echo "torch_numpy_interop=FAIL ($(grep -m1 -iE 'error|numpy' qa/train-check.txt))" >> qa/results.txt
-          /tmp/trainvenv/bin/python -m pytest -q tests/test_smoke.py -k adaface > qa/train-test.txt 2>&1; echo "adaface_test=$(tail -1 qa/train-test.txt)" >> qa/results.txt
+          /tmp/trainvenv/bin/python -m pytest -q tests/test_smoke.py tests/test_training_env.py -k "adaface or numpy" > qa/train-test.txt 2>&1; echo "adaface_test=$(tail -1 qa/train-test.txt)" >> qa/results.txt
 
       - name: Summary
         if: always()

@@ -25,6 +25,8 @@ infer = [
 ]
 # Training path (Phase 3). Heavy; only needed to train your own model.
 train = [
+    # PyTorch's last Intel-Mac wheels (2.2.x) are built against NumPy 1.x.
+    "numpy<2; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "torch>=2.1",
     "torchvision>=0.16",
     "timm>=0.9",

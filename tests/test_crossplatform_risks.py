@@ -125,7 +125,11 @@ def test_parse_dt_accepts_browser_datetime_local_and_utc_z():
 
     assert _parse_dt("2026-10-01T09:00") == datetime(2026, 10, 1, 9, 0)
     assert _parse_dt("2026-10-01T09:00:30") == datetime(2026, 10, 1, 9, 0, 30)
-    assert _parse_dt("2026-10-01T09:00:00Z") == datetime(2026, 10, 1, 9, 0)
+    from datetime import timezone
+
+    utc = datetime(2026, 10, 1, 9, 0, tzinfo=timezone.utc)
+    assert _parse_dt("2026-10-01T09:00:00Z") == utc.astimezone().replace(tzinfo=None)
+    assert _parse_dt("2026-10-01T14:30:00+05:30") == utc.astimezone().replace(tzinfo=None)
 
 
 def test_platform_layer_is_the_only_os_switch():

@@ -39,6 +39,10 @@ and [`ios-client/`](ios-client/).
   same on all platforms.
 - **Downloads in the iOS app.** Tapping "Download" opens the video in the in-app viewer instead of
   saving it. To save a file to Files, open the console in Safari.
+- **Timestamps.** All times are the server's local wall-clock time, the same clock as the
+  "clip starts/ends" fields in the console. Explicit offsets sent to the API (`…Z`, `+05:30`) are
+  converted to server-local time. Run the server in the same time zone as its operators. Rows
+  written before this convention (by versions that used UTC) keep their old values.
 - **Training (`occlubio.training`).** Uses CUDA if available, then Apple-Silicon `mps`, then CPU.
   It is not included in the packaged macOS app.
 - **CoreML acceleration on macOS (opt-in).** onnxruntime's `CoreMLExecutionProvider` is not enabled by

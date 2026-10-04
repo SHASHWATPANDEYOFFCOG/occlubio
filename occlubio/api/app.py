@@ -481,9 +481,10 @@ def _parse_dt(value: Optional[str]) -> Optional[datetime]:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         raise HTTPException(422, "time must be ISO-8601 (e.g. 2026-07-01T13:00:00)")
+    return parsed.astimezone().replace(tzinfo=None) if parsed.tzinfo else parsed
 
 
 @app.post("/api/identify", response_model=JobCreated)
@@ -495,7 +496,7 @@ async def identify(background: BackgroundTasks, file: UploadFile = File(...),
                    window_end: Optional[str] = Form(None),
                    user: User = Depends(require_authority),
                    db: DBSession = Depends(get_db)):
-    start = _parse_dt(window_start) or datetime.utcnow()
+    start = _parse_dt(window_start) or datetime.now()
     end = _parse_dt(window_end)
     if end and end < start:
         raise HTTPException(422, "window end is before window start")
